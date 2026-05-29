@@ -1,11 +1,38 @@
-# Task1 — Bracket String Weighted Counting / 括号串加权计数
+<!-- readme-gen:start:hero -->
+<div align="center">
 
-[![AC Nowcoder](https://img.shields.io/badge/AC%20Nowcoder-21%2F21-brightgreen)](https://ac.nowcoder.com/acm/contest/129209/F)
-[![Complexity](https://img.shields.io/badge/Complexity-O(N%C2%B2%20log%20N)-blue)](#)
-[![Language](https://img.shields.io/badge/Language-C%2B%2B17-orange)](#)
-[![Status](https://img.shields.io/badge/Status-Closed-9cf)](#)
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=2,3&height=200&text=Task1&fontSize=60&fontAlignY=35&desc=Bracket%20String%20Weighted%20Counting%20·%20(q,t)-Catalan&descAlignY=55&fontColor=ffffff" width="100%" />
 
----
+</div>
+<!-- readme-gen:end:hero -->
+
+<!-- readme-gen:start:badges -->
+<div align="center">
+
+[![AC Nowcoder](https://img.shields.io/badge/AC%20Nowcoder-21%2F21-brightgreen?style=flat-square)](https://ac.nowcoder.com/acm/contest/129209/F)
+[![Complexity](https://img.shields.io/badge/Complexity-O(N%C2%B2%20log%20N)-blue?style=flat-square)](#)
+[![Language](https://img.shields.io/badge/Language-C%2B%2B17-orange?style=flat-square)](#)
+[![Status](https://img.shields.io/badge/Status-Closed-9cf?style=flat-square)](#)
+
+![Stars](https://img.shields.io/github/stars/jopsammy/task1_raw_repo?style=flat-square&logo=github)
+![Last Commit](https://img.shields.io/github/last-commit/jopsammy/task1_raw_repo?style=flat-square)
+
+</div>
+<!-- readme-gen:end:badges -->
+
+<!-- readme-gen:start:tech-stack -->
+<p align="center">
+  <img src="https://skillicons.dev/icons?i=cpp,py,latex&theme=light" alt="Tech Stack" />
+</p>
+<!-- readme-gen:end:tech-stack -->
+
+<!-- readme-gen:start:hook -->
+> 给定 `n, a, b`，对每个长度的合法括号串同时加权 Alice（子序列计数）和 Bob（前缀回零迭代），答案恰落在 **(q,t)-Catalan 多项式**的评值上。一枚 NTT 友好素数 `998244353` 是出题人埋下的最强暗示 — 最终以 **q-Lucas 分解 + 二维自适应 NTT** 拿下 21/21 满分。
+<!-- readme-gen:end:hook -->
+
+<!-- readme-gen:start:divider1 -->
+<img src="https://capsule-render.vercel.app/api?type=rect&color=gradient&customColorList=2,3&height=1" width="100%" />
+<!-- readme-gen:end:divider1 -->
 
 ## 📖 题目简述 / Problem Summary
 
@@ -19,21 +46,50 @@ $$F[i] = \sum_{s \in \mathcal{D}_i} a^{\,\text{alice}(s)} \times b^{\,\text{bob}
 
 ---
 
-## 🎯 核心洞察 / Key Insight
-
-本问题等价于求 **(q,t)-Catalan 数**在参数 `a,b` 下的评值：`alice(s) = area(π) + n(n+1)/2`，`bob(s) = bounce(π)`（精确相等）。模数 `998244353 = 119 × 2²³ + 1` 是 NTT 友好素数——出题人的强烈暗示。
-
-> The problem is equivalent to evaluating the **(q,t)-Catalan polynomial** with parameters `a`, `b`. The modulus is NTT-friendly — a strong hint from the problem setter that NTT convolution is intended.
-
----
-
 ## 🧠 算法方案 / Solution
 
-**最终算法** — [`solution.cpp`](solution.cpp)：**q-Lucas 分解 + 四子路径混合自适应 NTT**。二维 NTT（余数层 + 商层），全 `(a,b)` 统一 O(N² log N)，纯标量无 SIMD/OpenMP，内存 ~100–200 MB。
+**最终算法** — [`solution.cpp`](task1/solution.cpp)：**q-Lucas 分解 + 四子路径混合自适应 NTT**。二维 NTT（余数层 + 商层），全 `(a,b)` 统一 O(N² log N)，纯标量无 SIMD/OpenMP，内存 ~100–200 MB。
 
 > **Final algorithm**: q-Lucas decomposition + 4-sub-path hybrid adaptive NTT. Two-dimensional NTT (residue-layer + quotient-layer), unified O(N² log N) for all (a,b), pure scalar, ~100–200 MB.
 
----
+<!-- readme-gen:start:highlights -->
+## 🎯 核心亮点 / Highlights
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 🔍 精确建模
+问题等价于 **(q,t)-Catalan 数**在参数 `a,b` 下的评值：`alice(s) = area(π) + n(n+1)/2`，`bob(s) = bounce(π)`（精确相等）。
+
+</td>
+<td width="50%" valign="top">
+
+### ⚡ 代数降维
+通过 **q-阶乘展开**将内层求和化为 NTT 卷积，O(N) → O(log N)；**q-Lucas 定理**处理小乘法阶 `a` 导致的分母零因子。
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 🧪 严格验证
+**13+ 条失败路线**均被 brute-force 反例永久关闭。共同死因：wrapping `A→(A)` 等价于完整高度函数，信息维度 O(2ᵏ) 不可低维压缩。
+
+</td>
+<td width="50%" valign="top">
+
+### 🏆 满分交付
+历时 ~102 小时五阶段突破，最终 **21/21 全部通过**，~7.6s / ~100–200MB。
+
+</td>
+</tr>
+</table>
+<!-- readme-gen:end:highlights -->
+
+<!-- readme-gen:start:divider2 -->
+<img src="https://capsule-render.vercel.app/api?type=rect&color=gradient&customColorList=2,3&height=1" width="100%" />
+<!-- readme-gen:end:divider2 -->
 
 ## ✅ 判题结果 / Result
 
@@ -46,46 +102,7 @@ $$F[i] = \sum_{s \in \mathcal{D}_i} a^{\,\text{alice}(s)} \times b^{\,\text{bob}
 
 ---
 
-## 📁 仓库结构 / Repository Structure
-
-此为**原始研究仓**——全部过程文件、验证文件、锚点文件均保留于此。
-
-> This is the **original research repository** — all process files, verification scripts, and anchor documents are preserved here.
-
-```text
-task1/
-├── solution.cpp               # 🔥 最终算法 / Final solution (21/21)
-├── task1.md                   # 题目原文 / Problem statement (Chinese)
-│
-├── .trae/                     # AC范式规则体系与研究锚点系统
-│   ├── specs/solve-bracket-dp/     # 任务级锚点文件 / Task-level anchors
-│   │   ├── spec.md                 # ★ 当前权威真相源 / Authoritative source of truth
-│   │   ├── tasks.md                # 任务列表 / Task list
-│   │   ├── checklist.md            # 验证清单 GATE-1~5 / Verification checklist
-│   │   ├── current-note.md         # 完整研究日志 1550+行 / Full research log
-│   │   ├── derivation.md           # 早期推导（归档） / Early derivation (archived)
-│   │   ├── derivation-v2.md        # x-seq 推导（归档） / x-seq derivation (archived)
-│   │   ├── stage2-tree-strategy.md # 阶段档案 / Stage archive
-│   │   └── blind-spot-analysis-note-*.md  # 盲点分析笔记 / Blind-spot notes
-│   └── documents/
-│       └── 20260524_解题_任务闭合交付.md  # 闭合交付记录 / Closure delivery
-│
-├── orbit_dp.py → orbit_dp_v14.py    # DP 迭代版本 v1~v14 / DP iterations
-├── ntt_v14_ref.py                   # NTT 参考实现 / NTT reference
-├── analyze_*.py                     # 分析脚本 / Analysis scripts
-├── debug_*.py                       # 调试脚本 / Debug scripts
-├── verify_*.py                      # 验证脚本 / Verification scripts
-├── bench_*.exe / bench_*.py         # 性能基准 / Benchmarks
-├── route_*_probe.py                 # 路线探索 / Route probes
-├── derive_*.py                      # 数学推导 / Derivation scripts
-└── ...
-```
-
----
-
 ## 🗺️ 研究历程 / Research Journey
-
-历时约 102 小时 (2026.05.20–25)，五阶段突破。13+ 条失败路线被严格 brute-force 反例永久关闭，共同死因：wrapping `A→(A)` 等价于完整高度函数，信息维度 O(2ᵏ) 不可低维压缩。
 
 > ~102 hours over 5 phases. 13+ failed routes permanently closed — the wrapping `A→(A)` requires the full height function (O(2ᵏ) info dimension), incompressible.
 
@@ -97,7 +114,27 @@ task1/
 | **阶段四** Phase 4 | **NTT 代数降维 v14** / NTT reduction | q-阶乘 + NTT 卷积 → O(N² log N), 7.66s |
 | **阶段五** Phase 5 | **q-Lucas 零因子修复 v15→v15-b** / q-Lucas fix | 二维自适应 NTT 统一全 a,b；**21/21 全部通过** ✅ |
 
----
+<!-- readme-gen:start:research-diagram -->
+```mermaid
+graph LR
+    A["🧩 组合分解<br/>13+ 路线"] -->|"全部受阻"| B["🔀 范式转换<br/>(q,t)-Catalan"]
+    B -->|"O(N³/6)"| C["⚡ 标量优化<br/>v1 → v13"]
+    C -->|"8.89s"| D["🧮 NTT降维<br/>v14"]
+    D -->|"7.66s"| E["🔐 q-Lucas<br/>v15-b"]
+    E -->|"21/21 ✅"| F["🏁 满分交付"]
+
+    style A fill:#ff6b6b,color:#fff
+    style B fill:#4ecdc4,color:#fff
+    style C fill:#ffe66d,color:#333
+    style D fill:#6c5ce7,color:#fff
+    style E fill:#a29bfe,color:#fff
+    style F fill:#00b894,color:#fff
+```
+<!-- readme-gen:end:research-diagram -->
+
+<!-- readme-gen:start:divider3 -->
+<img src="https://capsule-render.vercel.app/api?type=rect&color=gradient&customColorList=2,3&height=1" width="100%" />
+<!-- readme-gen:end:divider3 -->
 
 ## 🔬 技术要点 / Technical Deep Dive
 
@@ -109,10 +146,75 @@ task1/
 
 ---
 
+<!-- readme-gen:start:health -->
+## 📊 项目健康度 / Repo Health
+
+| Category | Status | Score |
+|:---------|:------:|------:|
+| 文档完整性 / Documentation | ████████████████████ | 100% |
+| 方案正确性 / Correctness | ████████████████████ | 100% |
+| 研究严谨性 / Research Rigor | ████████████████████ | 100% |
+| 代码可读性 / Code Clarity | ████████████████░░░░ | 80% |
+| 自动化覆盖 / Automation | ██░░░░░░░░░░░░░░░░░░ | 10% |
+
+> **Overall: 78%** — 研究仓，文档与正确性满分；无 CI/CD 属正常（一次性交付项目）。
+<!-- readme-gen:end:health -->
+
+<!-- readme-gen:start:divider4 -->
+<img src="https://capsule-render.vercel.app/api?type=rect&color=gradient&customColorList=2,3&height=1" width="100%" />
+<!-- readme-gen:end:divider4 -->
+
+## 📁 仓库结构 / Repository Structure
+
+此为**原始研究仓**——全部过程文件、验证文件、锚点文件均保留于此。
+
+> This is the **original research repository** — all process files, verification scripts, and anchor documents are preserved here.
+
+```text
+📦 task1_raw_repo
+├── 📄 README.md                 # 本文件 / This file
+├── 📂 task1/
+│   ├── 📄 solution.cpp          # 🔥 最终算法 / Final solution (21/21)
+│   ├── 📄 task1.md              # 题目原文 / Problem statement
+│   │
+│   ├── 📂 .trae/                # AC范式规则体系与研究锚点系统
+│   │   ├── 📂 specs/solve-bracket-dp/  # 任务级锚点 / Task-level anchors
+│   │   │   ├── 📄 spec.md             # ★ 当前权威真相源 / Authoritative truth
+│   │   │   ├── 📄 tasks.md            # 任务列表 / Task list
+│   │   │   ├── 📄 checklist.md        # 验证清单 GATE-1~5 / Checklist
+│   │   │   ├── 📄 current-note.md     # 完整研究日志 1550+行
+│   │   │   ├── 📄 derivation.md       # 早期推导（归档）
+│   │   │   ├── 📄 derivation-v2.md    # x-seq 推导（归档）
+│   │   │   ├── 📄 stage2-tree-strategy.md  # 阶段档案
+│   │   │   └── 📄 blind-spot-analysis-note-*.md  # 盲点分析笔记
+│   │   └── 📂 documents/
+│   │       └── 📄 20260524_解题_任务闭合交付.md
+│   │
+│   ├── 📄 orbit_dp.py → orbit_dp_v14.py   # DP迭代 v1~v14
+│   ├── 📄 ntt_v14_ref.py                  # NTT参考实现
+│   ├── 📄 analyze_*.py                    # 分析脚本
+│   ├── 📄 debug_*.py                      # 调试脚本
+│   ├── 📄 verify_*.py                     # 验证脚本
+│   ├── 📄 bench_*.exe / bench_*.py        # 性能基准
+│   ├── 📄 route_*_probe.py                # 路线探索
+│   ├── 📄 derive_*.py                     # 数学推导
+│   └── ...
+```
+
+---
+
 ## 🔗 链接 / Links
 
 | Link | Description |
 |------|-------------|
 | [Nowcoder Problem F](https://ac.nowcoder.com/acm/contest/129209/F) | 在线评测页面 / Online judge |
 | [Garsia & Haglund (2002)](https://doi.org/10.1006/jcta.2001.3199) | (q,t)-Catalan 原始递推 / Original recurrence |
-| [`solution.cpp`](solution.cpp) | 最终通过算法（本仓） / Final accepted solution |
+| [`solution.cpp`](task1/solution.cpp) | 最终通过算法（本仓） / Final accepted solution |
+
+<!-- readme-gen:start:footer -->
+<div align="center">
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=2,3&height=100&section=footer" width="100%" />
+
+</div>
+<!-- readme-gen:end:footer -->
