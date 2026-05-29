@@ -1,0 +1,145 @@
+{# Mock生成提示词模板 #}
+你是一位专业的Mock代码生成专家，请根据以下接口契约生成完整的Mock实现。
+
+【架构方案】
+{{ final_solution }}
+
+【要求】
+1. 为每个接口生成Mock实现
+2. Mock返回值需符合数据契约
+3. 包含合理的模拟数据
+4. 支持配置Mock行为（如返回固定值、抛出异常等）
+5. 支持Mock/真实实现一键切换，通过配置控制
+
+请使用以下格式输出（纯Python代码，不要包含markdown标记）：
+
+"""
+Mock实现模块
+本模块提供接口的Mock实现，用于开发和测试
+支持Mock/真实实现一键切换
+"""
+
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+import random
+import os
+import json
+
+
+class MockManager:
+    """
+    Mock管理器：统一管理Mock切换
+    支持通过配置文件或环境变量一键切换Mock/真实实现
+    """
+    
+    MOCK_CONFIG_PATH = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..", "..", "config", "mock_config.json"
+    )
+    
+    @classmethod
+    def _load_config(cls) -&gt; Dict[str, Any]:
+        """加载Mock配置文件"""
+        if os.path.exists(cls.MOCK_CONFIG_PATH):
+            try:
+                with open(cls.MOCK_CONFIG_PATH, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {}
+    
+    @classmethod
+    def is_mock_enabled(cls, module_name: str) -&gt; bool:
+        """
+        判断指定模块是否启用Mock
+        
+        :param module_name: 模块名称
+        :return: 是否启用Mock
+        """
+        config = cls._load_config()
+        module_config = config.get(module_name, {})
+        return module_config.get("enabled", True)
+    
+    @classmethod
+    def set_mock_mode(cls, module_name: str, enabled: bool):
+        """
+        设置模块的Mock模式
+        
+        :param module_name: 模块名称
+        :param enabled: 是否启用Mock
+        """
+        config = cls._load_config()
+        if module_name not in config:
+            config[module_name] = {}
+        config[module_name]["enabled"] = enabled
+        os.makedirs(os.path.dirname(cls.MOCK_CONFIG_PATH), exist_ok=True)
+        with open(cls.MOCK_CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+    
+    @classmethod
+    def get_mock_config(cls, module_name: str) -&gt; Dict[str, Any]:
+        """
+        获取模块的Mock配置
+        
+        :param module_name: 模块名称
+        :return: Mock配置字典
+        """
+        config = cls._load_config()
+        return config.get(module_name, {})
+
+
+class MockModuleName:
+    """模块Mock实现"""
+    
+    MODULE_NAME = "模块名称"
+    
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        """
+        初始化Mock模块
+        
+        :param config: 配置字典，可配置Mock行为
+        """
+        self.config = config or {}
+        self._data_store = {}
+        self._mock_config = MockManager.get_mock_config(self.MODULE_NAME)
+    
+    def method_name(self, param1: str, param2: int) -&gt; Dict[str, Any]:
+        """
+        Mock方法实现
+        
+        :param param1: 参数1
+        :param param2: 参数2
+        :return: 模拟返回值
+        """
+        if self._mock_config.get("raise_error", False):
+            raise ValueError("Mock错误")
+        
+        fixed_value = self._mock_config.get("fixed_value")
+        if fixed_value is not None:
+            return fixed_value
+        
+        return {
+            "result": "success",
+            "data": {
+                "id": f"mock_{random.randint(1000, 9999)}",
+                "param1": param1,
+                "param2": param2,
+                "created_at": datetime.now().isoformat()
+            }
+        }
+
+
+def get_module_instance() -&gt; Any:
+    """
+    获取模块实例：自动根据配置返回Mock或真实实现
+    
+    :return: 模块实例
+    """
+    if MockManager.is_mock_enabled(MockModuleName.MODULE_NAME):
+        return MockModuleName()
+    else:
+        try:
+            from .module_name_real import ModuleNameReal
+            return ModuleNameReal()
+        except ImportError:
+            return MockModuleName()

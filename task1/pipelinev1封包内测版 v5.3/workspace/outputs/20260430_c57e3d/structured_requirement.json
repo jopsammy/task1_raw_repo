@@ -1,0 +1,247 @@
+{
+  "requirements": [
+    {
+      "content": "开发基于用户意图、符合VI规范的AI生图工具，支持生成后自动叠加Logo并输出，可封装为独立Skill",
+      "level": 1,
+      "order": 0,
+      "parent_id": null,
+      "tags": [
+        "核心目标"
+      ]
+    },
+    {
+      "content": "核心业务流程设计",
+      "level": 2,
+      "order": 0,
+      "parent_id": 0,
+      "tags": [
+        "业务流程"
+      ]
+    },
+    {
+      "content": "架构设计规范",
+      "level": 2,
+      "order": 1,
+      "parent_id": 0,
+      "tags": [
+        "架构"
+      ]
+    },
+    {
+      "content": "提示词设计规范",
+      "level": 2,
+      "order": 2,
+      "parent_id": 0,
+      "tags": [
+        "Prompt管理"
+      ]
+    },
+    {
+      "content": "输出与适配要求",
+      "level": 2,
+      "order": 3,
+      "parent_id": 0,
+      "tags": [
+        "输出规范"
+      ]
+    },
+    {
+      "content": "容错与兼容要求",
+      "level": 2,
+      "order": 4,
+      "parent_id": 0,
+      "tags": [
+        "容错"
+      ]
+    },
+    {
+      "content": "技术栈要求",
+      "level": 2,
+      "order": 5,
+      "parent_id": 0,
+      "tags": [
+        "技术实现"
+      ]
+    },
+    {
+      "content": "初始化资源准备：预加载VI标准文件、待叠加的Logo PNG资源",
+      "level": 3,
+      "order": 0,
+      "parent_id": 1,
+      "tags": [
+        "初始化"
+      ]
+    },
+    {
+      "content": "用户输入接收：支持接收用户输入的生图提示词、可选横纵比参数（16:9/9:16）",
+      "level": 3,
+      "order": 1,
+      "parent_id": 1,
+      "tags": [
+        "输入处理"
+      ]
+    },
+    {
+      "content": "LLM提示词增强处理：调用文本LLM对用户提示词进行增强，依次输出设计思路、增强说明、自然语言画面描述、Tag式描述",
+      "level": 3,
+      "order": 2,
+      "parent_id": 1,
+      "tags": [
+        "LLM处理"
+      ]
+    },
+    {
+      "content": "生图API调用：将原始用户需求、VI标准、增强后的提示词、横纵比参数传入生图API获取生成的原始图片",
+      "level": 3,
+      "order": 3,
+      "parent_id": 1,
+      "tags": [
+        "生图调用"
+      ]
+    },
+    {
+      "content": "Logo叠加处理：调用Pillow库将预设Logo叠加到生成图片的左上角或右上角",
+      "level": 3,
+      "order": 4,
+      "parent_id": 1,
+      "tags": [
+        "图像处理"
+      ]
+    },
+    {
+      "content": "结果输出：返回叠加Logo后的最终图片及关联元数据",
+      "level": 3,
+      "order": 5,
+      "parent_id": 1,
+      "tags": [
+        "输出处理"
+      ]
+    },
+    {
+      "content": "生图API Provider适配：采用抽象基类+工厂模式封装不同生图API，统一实现generate_image和health_check方法，支持无需修改业务代码切换生图服务商",
+      "level": 3,
+      "order": 0,
+      "parent_id": 2,
+      "tags": [
+        "扩展性"
+      ]
+    },
+    {
+      "content": "并发控制：采用asyncio.Semaphore限制并发请求数，避免触发API限流",
+      "level": 3,
+      "order": 1,
+      "parent_id": 2,
+      "tags": [
+        "并发控制"
+      ]
+    },
+    {
+      "content": "轻量化设计：架构无冗余模块，足够精简可直接封装为独立Skill",
+      "level": 3,
+      "order": 2,
+      "parent_id": 2,
+      "tags": [
+        "轻量化"
+      ]
+    },
+    {
+      "content": "提示词模板管理：采用Jinja2模板存储LLM调用提示词，模板与代码解耦，便于修改维护",
+      "level": 3,
+      "order": 0,
+      "parent_id": 3,
+      "tags": [
+        "模板管理"
+      ]
+    },
+    {
+      "content": "结构化输出约束：要求LLM返回标准JSON格式结果，包含设计思路、增强说明、自然语言画面描述、Tag列表必填字段",
+      "level": 3,
+      "order": 1,
+      "parent_id": 3,
+      "tags": [
+        "输出约束"
+      ]
+    },
+    {
+      "content": "硬约束前置：VI规范、横纵比要求等强制约束放在提示词最前端，提升LLM遵从度",
+      "level": 3,
+      "order": 2,
+      "parent_id": 3,
+      "tags": [
+        "Prompt优化"
+      ]
+    },
+    {
+      "content": "横纵比适配：支持用户指定16:9/9:16参数，也支持LLM根据用户意图自动推荐适配的横纵比参数传递给生图API",
+      "level": 3,
+      "order": 0,
+      "parent_id": 4,
+      "tags": [
+        "尺寸适配"
+      ]
+    },
+    {
+      "content": "Logo位置配置：支持预设Logo叠加位置为左上角/右上角，可灵活调整",
+      "level": 3,
+      "order": 1,
+      "parent_id": 4,
+      "tags": [
+        "样式配置"
+      ]
+    },
+    {
+      "content": "返回结果容错：对生图API返回的结果做多层降级提取，兼容URL、base64等多种返回格式",
+      "level": 3,
+      "order": 0,
+      "parent_id": 5,
+      "tags": [
+        "结果处理"
+      ]
+    },
+    {
+      "content": "字段校验容错：对LLM返回的JSON字段做防御性校验，缺失字段自动补齐默认值，避免程序崩溃",
+      "level": 3,
+      "order": 1,
+      "parent_id": 5,
+      "tags": [
+        "数据校验"
+      ]
+    },
+    {
+      "content": "密钥安全：API Key不硬编码，采用配置引用方式获取，避免密钥泄露",
+      "level": 3,
+      "order": 2,
+      "parent_id": 5,
+      "tags": [
+        "安全"
+      ]
+    },
+    {
+      "content": "异步HTTP请求采用aiohttp实现，并发处理采用asyncio.gather实现",
+      "level": 3,
+      "order": 0,
+      "parent_id": 6,
+      "tags": [
+        "依赖"
+      ]
+    },
+    {
+      "content": "图像处理采用Pillow库实现",
+      "level": 3,
+      "order": 1,
+      "parent_id": 6,
+      "tags": [
+        "依赖"
+      ]
+    },
+    {
+      "content": "提示词模板采用Jinja2引擎渲染",
+      "level": 3,
+      "order": 2,
+      "parent_id": 6,
+      "tags": [
+        "依赖"
+      ]
+    }
+  ]
+}

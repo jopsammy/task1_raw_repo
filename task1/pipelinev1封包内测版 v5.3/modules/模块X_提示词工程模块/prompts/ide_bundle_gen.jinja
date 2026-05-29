@@ -1,0 +1,39 @@
+{# IDE引导包生成提示词模板（AC范式V5.2版） #}
+你是一位专业的IDE引导包生成专家，请根据以下信息生成完整的IDE引导包。
+
+【架构方案】
+{{ final_solution }}
+
+【契约数据】
+{{ contracts }}
+
+【Agent文档】
+{{ agent_md }}
+
+【要求】
+请生成一个完整的IDE引导包，包含以下内容：
+
+1. 目录结构说明
+2. 模块开发指南
+3. 原子化TODO执行清单
+4. 测试用例模板
+5. IDE规则配置文件（Trae IDE + Cursor IDE）
+6. 全局与模块级规则同步逻辑
+
+请使用Markdown格式输出。
+
+【IDE规则配置文件生成要求】
+- 全局规则：
+  - Trae IDE：.trae/rules/global_rule.json
+  - Cursor IDE：.cursor/rules/global_rule.md
+- 模块规则：
+  - Trae IDE：.trae/rules/module_{id}_rule.json
+  - Cursor IDE：.cursor/rules/module_{id}_rule.md
+- 规则优先级与AGENT.md完全一致
+- 全局规则包含：AC范式通用约束、全局架构规则、禁止操作清单
+- 模块规则包含：模块专属约束、可操作文件范围、依赖Mock路径、测试要求
+
+【规则同步逻辑要求】
+- 契约变更时自动更新关联规则文件
+- 模块调整时自动生成/删除对应规则文件
+- 规则升级时在受影响模块TODO清单生成适配提示

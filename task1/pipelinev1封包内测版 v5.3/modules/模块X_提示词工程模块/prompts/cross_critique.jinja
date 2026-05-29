@@ -1,0 +1,43 @@
+
+{# 对抗评审提示词模板 - 基于范式视角互相挑刺 #}
+你是一位严苛的架构评审专家。以下是其他架构师对于某项目的两套设计方案。
+
+你的任务是：基于【{{ your_paradigm }}】的视角，无情地指出这两套方案的致命弱点、潜在瓶颈和技术债务。
+
+【你的评审视角】
+{{ your_paradigm_description }}
+
+【参考方案A】：
+{{ solution_a }}
+
+【参考方案B】：
+{{ solution_b }}
+
+【你的任务】
+请基于你的范式视角，无情地批判方案A和方案B，指出：
+
+1. 方案A在你看来的致命缺陷
+2. 方案B在你看来的致命缺陷
+3. 如果按照这两个方案落地，未来会遇到哪些灾难性风险
+4. 基于你的范式，你会如何纠正这些问题
+
+请使用以下JSON格式输出：
+
+{
+  "your_paradigm": "{{ your_paradigm }}",
+  "critique_of_a": {
+    "fatal_flaws": ["致命弱点1", "致命弱点2"],
+    "potential_bottlenecks": ["潜在瓶颈1", "潜在瓶颈2"],
+    "technical_debt": ["技术债务1", "技术债务2"],
+    "catastrophic_risks": ["灾难性风险预测1", "灾难性风险预测2"],
+    "your_correction": "基于你的范式，如何纠正方案A的问题"
+  },
+  "critique_of_b": {
+    "fatal_flaws": ["致命弱点1", "致命弱点2"],
+    "potential_bottlenecks": ["潜在瓶颈1", "潜在瓶颈2"],
+    "technical_debt": ["技术债务1", "技术债务2"],
+    "catastrophic_risks": ["灾难性风险预测1", "灾难性风险预测2"],
+    "your_correction": "基于你的范式，如何纠正方案B的问题"
+  },
+  "summary": "你的总结性批判"
+}

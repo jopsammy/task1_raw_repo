@@ -1,0 +1,45 @@
+{# 完整落地方案生成提示词模板（JSON格式） #}
+你是一位专业的落地方案生成专家，请根据以下信息生成完整的落地方案。
+
+【结构化需求】
+{{ structured_requirement }}
+
+【架构方案】
+{{ final_architecture }}
+
+【契约数据】
+{{ contracts }}
+
+【要求】
+请生成一个完整的落地方案，使用JSON格式输出，包含以下内容：
+
+1. 项目概述
+2. 技术架构
+3. 模块划分
+4. 实施计划
+5. 风险评估
+6. manifest
+   - manifest: {
+       "file_list": {
+         "file_path": "职责说明"
+       },
+       "scene_mapping": {
+         "single": "单场景目录结构",
+         "multi": "多场景目录结构"
+       },
+       "rule_hierarchy": {
+         "global": "全局规则",
+         "module": "模块级规则"
+       },
+       "ide_support": ["trae", "cursor", "windsurf", "vscode"]
+     }
+7. merge_script（新增）
+   - merge_script: {
+       "steps": [
+         "按依赖顺序合并子模块代码",
+         "替换Mock实现为真实实现",
+         "执行全局契约校验"
+       ]
+     }
+
+请使用JSON格式输出，不要包含任何其他解释文字。

@@ -1,0 +1,1329 @@
+"""
+模块职责：Pipeline编排器模块
+负责需求锚定与校验、多LLM对抗方案迭代、全局契约生成、IDE引导包生成
+集成提示词工程模块和数据锚点与存储模块
+"""
+
+import os
+import sys
+import json
+import hashlib
+import threading
+from typing import Dict, List, Any, Optional, Callable
+from datetime import datetime
+from enum import Enum
+
+
+
+# 导入其他模块
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+project_root = os.path.abspath(os.path.join(current_dir, '../..'))
+
+sys.path.insert(0, project_root)
+
+
+
+from modules.模块2_核心业务引擎模块.llm_client import get_llm_client, LLMClient
+
+from modules.模块X_提示词工程模块.prompt_engine import get_prompt_engine, PromptEngine
+
+
+
+
+
+class PipelineStage(Enum):
+
+    """Pipeline阶段枚举"""
+
+    REQUIREMENT_ANCHORING = "requirement_anchoring"
+
+    REQUIREMENT_VALIDATION = "requirement_validation"
+
+    ARCHITECTURE_ITERATION = "architecture_iteration"
+
+    CONTRACT_GENERATION = "contract_generation"
+
+    LANDING_PLAN_GENERATION = "landing_plan_generation"
+
+    IDE_BUNDLE_GENERATION = "ide_bundle_generation"
+
+    COMPLETED = "completed"
+
+
+
+
+
+class PipelineOrchestrator:
+
+    """
+
+    Pipeline编排器
+
+    负责协调各个阶段的执行，管理Pipeline状态和进度
+
+    """
+
+
+
+    def __init__(self, llm_client: Optional[LLMClient] = None, 
+
+                 prompt_engine: Optional[PromptEngine] = None):
+
+        """
+
+        初始化Pipeline编排器
+
+
+
+        Args:
+
+            llm_client: LLM客户端实例，None则使用全局单例
+
+            prompt_engine: 提示词引擎实例，None则使用全局单例
+
+        """
+
+        self.llm_client = llm_client or get_llm_client()
+        self.prompt_engine = prompt_engine or get_prompt_engine()
+        self.pipeline_state: Dict[str, Any] = {}
+        self.pipeline_logs: List[Dict[str, Any]] = []
+        
+        # 软件工程三大范式描述
+        self.paradigm_descriptions = {
+            1: {
+                "name": "边界防腐与高度解耦",
+                "paradigm": "整洁架构/六边形架构",
+                "description": """
+优化目标是"隔离"：制定严格的接口契约，确保业务核心逻辑与外部依赖（框架、UI、数据库、第三方接口）绝对分离。
+强调控制反转（IoC）和依赖注入（Dependency Injection）。
+即使系统很小，也要考虑未来可以无感替换任意底层组件。
+输出特征：关注点放在 Interface 设计、Adapter 隔离和抽象类的定义上。
+                """
+            },
+            2: {
+                "name": "数据流转与状态驱动",
+                "paradigm": "领域事件/响应式编程",
+                "description": """
+优化目标是"流程与状态的清晰度"：把整个系统看作是数据的管道。
+减少共享的可变状态，强调单向数据流（Unidirectional Data Flow）、事件溯源（Event Sourcing）或状态机（State Machine）。
+不管系统多大，核心是弄清楚"数据从哪来，经过什么变换，到了哪里，触发了什么状态"。
+输出特征：关注点放在事件总线（Event Bus）、数据模型（Data Classes/Structs）、不可变性（Immutability）和管道拦截器（Pipeline Interceptor）的设计上。
+                """
+            },
+            3: {
+                "name": "垂直内聚与直觉实用",
+                "paradigm": "垂直切片架构/极限编程",
+                "description": """
+优化目标是"按功能内聚，降低认知负载"。
+抵制过度抽象，要求按业务 Feature（特性）来组织代码，而不是按技术分层来组织。
+如果一个功能需要用到从前到后的链路，把它封装在一个管线里。
+遵循 YAGNI（You Aren't Gonna Need It）原则，用最直白的方式解决问题。
+输出特征：给出非常直接的模块划分，模块之间几乎没有横向的相互依赖，关注点是"如何快速增加或删除一个独立业务功能"。
+                """
+            }
+        }
+
+
+
+    def _log(self, stage: str, message: str, level: str = "INFO", data: Any = None):
+
+        """
+
+        记录Pipeline日志
+
+
+
+        Args:
+
+            stage: 阶段
+
+            message: 消息
+
+            level: 日志级别
+
+            data: 附加数据
+
+        """
+
+        log_entry = {
+
+            "timestamp": datetime.now().isoformat(),
+
+            "stage": stage,
+
+            "level": level,
+
+            "message": message,
+
+            "data": data
+
+        }
+
+        self.pipeline_logs.append(log_entry)
+
+        print(f"[{level}] {stage}: {message}")
+
+
+
+    def run_requirement_anchoring(self, requirement_text: str, 
+
+                                   project_id: Optional[str] = None) -> Dict[str, Any]:
+
+        """
+
+        阶段1：需求锚定与结构化
+
+
+
+        Args:
+
+            requirement_text: 原始需求文本
+
+            project_id: 项目ID
+
+
+
+        Returns:
+
+            结构化需求结果
+
+        """
+
+        self._log(PipelineStage.REQUIREMENT_ANCHORING.value, "开始需求锚定与结构化")
+
+
+
+        try:
+
+            # 生成提示词
+
+            prompt_obj = self.prompt_engine.generate_prompt(
+
+                "requirement_structuring",
+
+                {"requirement_text": requirement_text}
+
+            )
+
+
+
+            # 调用LLM
+
+            llm_result = self.llm_client.call_llm_with_fallback(
+
+                prompt_obj["system_prompt"],
+
+                prompt_obj["user_prompt"]
+
+            )
+
+
+
+            if not llm_result.get("success"):
+
+                self._log(PipelineStage.REQUIREMENT_ANCHORING.value, 
+
+                         f"需求结构化失败: {llm_result.get('error')}", "ERROR")
+
+                return {
+
+                    "success": False,
+
+                    "error": llm_result.get("error"),
+
+                    "stage": PipelineStage.REQUIREMENT_ANCHORING.value
+
+                }
+
+
+
+            # 解析LLM输出为JSON
+
+            structured_requirement = self._parse_llm_json_output(llm_result["content"])
+
+
+
+            self._log(PipelineStage.REQUIREMENT_ANCHORING.value, "需求锚定与结构化完成", "SUCCESS")
+
+
+
+            return {
+
+                "success": True,
+
+                "stage": PipelineStage.REQUIREMENT_ANCHORING.value,
+
+                "structured_requirement": structured_requirement,
+
+                "raw_llm_response": llm_result["content"],
+
+                "llm_provider": llm_result.get("provider"),
+
+                "timestamp": datetime.now().isoformat()
+
+            }
+
+
+
+        except Exception as e:
+
+            self._log(PipelineStage.REQUIREMENT_ANCHORING.value, 
+
+                     f"需求锚定异常: {str(e)}", "ERROR")
+
+            return {
+
+                "success": False,
+
+                "error": str(e),
+
+                "stage": PipelineStage.REQUIREMENT_ANCHORING.value
+
+            }
+
+
+
+    def run_requirement_validation(self, structured_requirement: Dict[str, Any]) -> Dict[str, Any]:
+
+        """
+
+        阶段2：需求校验与修正
+
+
+
+        Args:
+
+            structured_requirement: 结构化需求数据
+
+
+
+        Returns:
+
+            校验结果
+
+        """
+
+        self._log(PipelineStage.REQUIREMENT_VALIDATION.value, "开始需求校验与修正")
+
+
+
+        try:
+
+            prompt_obj = self.prompt_engine.generate_prompt(
+
+                "requirement_validation",
+
+                {"structured_requirement": json.dumps(structured_requirement, ensure_ascii=False, indent=2)}
+
+            )
+
+
+
+            llm_result = self.llm_client.call_llm_with_fallback(
+
+                prompt_obj["system_prompt"],
+
+                prompt_obj["user_prompt"]
+
+            )
+
+
+
+            if not llm_result.get("success"):
+
+                self._log(PipelineStage.REQUIREMENT_VALIDATION.value, 
+
+                         f"需求校验失败: {llm_result.get('error')}", "ERROR")
+
+                return {
+
+                    "success": False,
+
+                    "error": llm_result.get("error"),
+
+                    "stage": PipelineStage.REQUIREMENT_VALIDATION.value
+
+                }
+
+
+
+            validation_result = self._parse_llm_json_output(llm_result["content"])
+
+
+
+            self._log(PipelineStage.REQUIREMENT_VALIDATION.value, "需求校验完成", "SUCCESS")
+
+
+
+            return {
+
+                "success": True,
+
+                "stage": PipelineStage.REQUIREMENT_VALIDATION.value,
+
+                "validation_result": validation_result,
+
+                "raw_llm_response": llm_result["content"],
+
+                "llm_provider": llm_result.get("provider"),
+
+                "timestamp": datetime.now().isoformat()
+
+            }
+
+
+
+        except Exception as e:
+
+            self._log(PipelineStage.REQUIREMENT_VALIDATION.value, 
+
+                     f"需求校验异常: {str(e)}", "ERROR")
+
+            return {
+
+                "success": False,
+
+                "error": str(e),
+
+                "stage": PipelineStage.REQUIREMENT_VALIDATION.value
+
+            }
+
+
+
+    def run_architecture_iteration(self, validated_requirement: Dict[str, Any],
+                                    num_llms: int = 3) -> Dict[str, Any]:
+        """
+        阶段3：多LLM对抗方案迭代（基于软件工程三大范式 + 对抗评审）
+
+        Args:
+            validated_requirement: 校验后的需求数据
+            num_llms: 使用的LLM数量
+
+        Returns:
+            迭代后的架构方案
+        """
+        self._log(PipelineStage.ARCHITECTURE_ITERATION.value, "开始多LLM对抗方案迭代（基于软件工程三大范式）")
+
+        try:
+            providers = self.llm_client.get_available_providers()
+            if len(providers) < num_llms:
+                num_llms = len(providers)
+            selected_providers = providers[:num_llms]
+
+            self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                     f"使用 {num_llms} 个LLM提供商: {selected_providers}")
+            self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                     "三个范式：1.边界防腐与高度解耦 2.数据流转与状态驱动 3.垂直内聚与直觉实用")
+
+            # ========== 第一阶段：三个LLM并行生成方案 ==========
+            self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                     "===== 第一阶段：三个LLM并行生成方案 =====")
+
+            # 使用线程安全的列表存储结果
+            solutions_lock = threading.Lock()
+            solutions = []
+
+            def call_llm_worker(i, provider):
+                """单个LLM调用的工作线程函数"""
+                try:
+                    template_id = f"architecture_solution_llm{i+1}"
+                    try:
+                        prompt_obj = self.prompt_engine.generate_prompt(
+                            template_id,
+                            {"validated_requirement": json.dumps(validated_requirement, ensure_ascii=False, indent=2)}
+                        )
+                    except Exception:
+                        prompt_obj = self.prompt_engine.generate_prompt(
+                            "architecture_solution_llm1",
+                            {"validated_requirement": json.dumps(validated_requirement, ensure_ascii=False, indent=2)}
+                        )
+
+                    llm_result = self.llm_client.call_llm(
+                        prompt_obj["system_prompt"],
+                        prompt_obj["user_prompt"],
+                        provider=provider
+                    )
+
+                    if llm_result.get("success"):
+                        solution = self._parse_llm_json_output(llm_result["content"])
+                        solution["paradigm_info"] = self.paradigm_descriptions[i+1]
+                        with solutions_lock:
+                            solutions.append({
+                                "provider": provider,
+                                "paradigm_index": i+1,
+                                "paradigm_info": self.paradigm_descriptions[i+1],
+                                "solution": solution,
+                                "raw_response": llm_result["content"]
+                            })
+                        self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                                 f"{provider} ({self.paradigm_descriptions[i+1]['name']}) 方案生成成功")
+                    else:
+                        self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                                 f"{provider} 调用失败: {llm_result.get('error')}", "WARNING")
+                except Exception as e:
+                    self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                             f"{provider} 调用异常: {str(e)}", "WARNING")
+
+            # 启动所有线程并行调用LLM
+            threads = []
+            for i, provider in enumerate(selected_providers):
+                self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                         f"启动 {provider} 调用线程 ({i+1}/{num_llms}) - {self.paradigm_descriptions[i+1]['name']}")
+                thread = threading.Thread(target=call_llm_worker, args=(i, provider))
+                threads.append(thread)
+                thread.start()
+
+            # 等待所有线程完成
+            self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                     "等待所有LLM调用完成...")
+            for thread in threads:
+                thread.join()
+
+            self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                     f"所有LLM调用完成，成功生成 {len(solutions)} 个方案")
+
+            if len(solutions) == 0:
+                return {
+                    "success": False,
+                    "error": "所有LLM调用失败",
+                    "stage": PipelineStage.ARCHITECTURE_ITERATION.value
+                }
+
+            # ========== 第二阶段：对抗评审环节（新增） ==========
+            self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                     "===== 第二阶段：对抗评审环节 =====")
+
+            critiques_lock = threading.Lock()
+            critiques = []
+
+            def call_critique_worker(i, solution_a, solution_b, provider):
+                """单个对抗评审的工作线程函数"""
+                try:
+                    paradigm_info = self.paradigm_descriptions[i+1]
+                    
+                    prompt_obj = self.prompt_engine.generate_prompt(
+                        "cross_critique",
+                        {
+                            "your_paradigm": paradigm_info["name"],
+                            "your_paradigm_description": paradigm_info["description"],
+                            "solution_a": json.dumps(solution_a, ensure_ascii=False, indent=2),
+                            "solution_b": json.dumps(solution_b, ensure_ascii=False, indent=2)
+                        }
+                    )
+
+                    llm_result = self.llm_client.call_llm(
+                        prompt_obj["system_prompt"],
+                        prompt_obj["user_prompt"],
+                        provider=provider
+                    )
+
+                    if llm_result.get("success"):
+                        critique = self._parse_llm_json_output(llm_result["content"])
+                        with critiques_lock:
+                            critiques.append({
+                                "reviewer_paradigm": paradigm_info["name"],
+                                "reviewer_provider": provider,
+                                "critique": critique,
+                                "raw_response": llm_result["content"]
+                            })
+                        self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                                 f"{paradigm_info['name']} 对抗评审完成")
+                    else:
+                        self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                                 f"{paradigm_info['name']} 对抗评审调用失败: {llm_result.get('error')}", "WARNING")
+                except Exception as e:
+                    self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                             f"对抗评审调用异常: {str(e)}", "WARNING")
+
+            # 启动对抗评审线程
+            critique_threads = []
+            
+            # LLM1评审LLM2和LLM3的方案
+            if len(solutions) >= 3:
+                self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                         "启动 LLM1 评审 LLM2 和 LLM3 的方案")
+                thread = threading.Thread(
+                    target=call_critique_worker, 
+                    args=(0, solutions[1], solutions[2], selected_providers[0])
+                )
+                critique_threads.append(thread)
+                thread.start()
+                
+                # LLM2评审LLM1和LLM3的方案
+                self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                         "启动 LLM2 评审 LLM1 和 LLM3 的方案")
+                thread = threading.Thread(
+                    target=call_critique_worker, 
+                    args=(1, solutions[0], solutions[2], selected_providers[1])
+                )
+                critique_threads.append(thread)
+                thread.start()
+                
+                # LLM3评审LLM1和LLM2的方案
+                self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                         "启动 LLM3 评审 LLM1 和 LLM2 的方案")
+                thread = threading.Thread(
+                    target=call_critique_worker, 
+                    args=(2, solutions[0], solutions[1], selected_providers[2])
+                )
+                critique_threads.append(thread)
+                thread.start()
+
+            # 等待所有对抗评审完成
+            self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                     "等待所有对抗评审完成...")
+            for thread in critique_threads:
+                thread.join()
+
+            self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                     f"所有对抗评审完成，生成 {len(critiques)} 份评审意见")
+
+            # ========== 第三阶段：融合最终方案 ==========
+            self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                     "===== 第三阶段：融合最终方案 =====")
+
+            # 准备融合提示词的数据
+            solution_1 = solutions[0]["solution"] if len(solutions) > 0 else {}
+            solution_2 = solutions[1]["solution"] if len(solutions) > 1 else {}
+            solution_3 = solutions[2]["solution"] if len(solutions) > 2 else {}
+
+            fusion_prompt = self.prompt_engine.generate_prompt(
+                "solution_fusion",
+                {
+                    "solution_1": json.dumps(solution_1, ensure_ascii=False, indent=2),
+                    "solution_2": json.dumps(solution_2, ensure_ascii=False, indent=2),
+                    "solution_3": json.dumps(solution_3, ensure_ascii=False, indent=2),
+                    "critiques": json.dumps(critiques, ensure_ascii=False, indent=2)
+                }
+            )
+
+            fusion_result = self.llm_client.call_llm_with_fallback(
+                fusion_prompt["system_prompt"],
+                fusion_prompt["user_prompt"]
+            )
+
+            if not fusion_result.get("success"):
+                self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                         f"方案融合失败: {fusion_result.get('error')}", "WARNING")
+                final_solution = solutions[0]["solution"]
+            else:
+                final_solution = self._parse_llm_json_output(fusion_result["content"])
+
+            self._log(PipelineStage.ARCHITECTURE_ITERATION.value, "多LLM对抗方案迭代完成", "SUCCESS")
+
+            return {
+                "success": True,
+                "stage": PipelineStage.ARCHITECTURE_ITERATION.value,
+                "final_solution": final_solution,
+                "individual_solutions": solutions,
+                "critiques": critiques,
+                "timestamp": datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            self._log(PipelineStage.ARCHITECTURE_ITERATION.value,
+                     f"方案迭代异常: {str(e)}", "ERROR")
+            return {
+                "success": False,
+                "error": str(e),
+                "stage": PipelineStage.ARCHITECTURE_ITERATION.value
+            }
+
+
+
+    def run_contract_generation(self, final_solution: Dict[str, Any]) -> Dict[str, Any]:
+
+        """
+
+        阶段4：全局契约生成
+
+
+
+        Args:
+
+            final_solution: 最终架构方案
+
+
+
+        Returns:
+
+            契约生成结果
+
+        """
+
+        self._log(PipelineStage.CONTRACT_GENERATION.value, "开始全局契约生成")
+
+
+
+        try:
+
+            contracts = {}
+
+
+
+            # 生成接口契约
+
+            self._log(PipelineStage.CONTRACT_GENERATION.value, "生成接口契约")
+
+            interface_prompt = self.prompt_engine.generate_prompt(
+
+                "interface_contract_gen",
+
+                {"final_solution": json.dumps(final_solution, ensure_ascii=False, indent=2)}
+
+            )
+
+            interface_result = self.llm_client.call_llm_with_fallback(
+
+                interface_prompt["system_prompt"],
+
+                interface_prompt["user_prompt"]
+
+            )
+
+            if interface_result.get("success"):
+
+                contracts["interface"] = self._parse_llm_json_output(interface_result["content"])
+
+
+
+            # 生成数据契约
+
+            self._log(PipelineStage.CONTRACT_GENERATION.value, "生成数据契约")
+
+            data_prompt = self.prompt_engine.generate_prompt(
+
+                "data_contract_gen",
+
+                {"final_solution": json.dumps(final_solution, ensure_ascii=False, indent=2)}
+
+            )
+
+            data_result = self.llm_client.call_llm_with_fallback(
+
+                data_prompt["system_prompt"],
+
+                data_prompt["user_prompt"]
+
+            )
+
+            if data_result.get("success"):
+
+                contracts["data"] = self._parse_llm_json_output(data_result["content"])
+
+
+
+            # 生成Mock
+
+            self._log(PipelineStage.CONTRACT_GENERATION.value, "生成Mock实现")
+
+            mock_prompt = self.prompt_engine.generate_prompt(
+
+                "mock_gen",
+
+                {"final_solution": json.dumps(final_solution, ensure_ascii=False, indent=2)}
+
+            )
+
+            mock_result = self.llm_client.call_llm_with_fallback(
+
+                mock_prompt["system_prompt"],
+
+                mock_prompt["user_prompt"]
+
+            )
+
+            if mock_result.get("success"):
+
+                contracts["mock"] = mock_result["content"]
+
+
+
+            self._log(PipelineStage.CONTRACT_GENERATION.value, "全局契约生成完成", "SUCCESS")
+
+
+
+            return {
+
+                "success": True,
+
+                "stage": PipelineStage.CONTRACT_GENERATION.value,
+
+                "contracts": contracts,
+
+                "timestamp": datetime.now().isoformat()
+
+            }
+
+
+
+        except Exception as e:
+
+            self._log(PipelineStage.CONTRACT_GENERATION.value, 
+
+                     f"契约生成异常: {str(e)}", "ERROR")
+
+            return {
+                "success": False,
+                "error": str(e),
+                "stage": PipelineStage.CONTRACT_GENERATION.value
+            }
+
+    def run_landing_plan_generation(self, structured_requirement: Dict[str, Any], final_solution: Dict[str, Any], contracts: Dict[str, Any]) -&gt; Dict[str, Any]:
+        """阶段4.5：落地方案生成（V5.2升级新增）
+
+        Args:
+            structured_requirement: 结构化需求
+            final_solution: 最终架构方案
+            contracts: 契约数据
+
+        Returns:
+            落地方案结果
+        """
+        self._log(PipelineStage.LANDING_PLAN_GENERATION.value, "开始落地方案生成")
+
+        try:
+            landing_plan = {}
+
+            self._log(PipelineStage.LANDING_PLAN_GENERATION.value, "生成Markdown格式落地方案")
+            md_prompt = self.prompt_engine.generate_prompt(
+                "final_landing_plan_md",
+                {
+                    "structured_requirement": json.dumps(structured_requirement, ensure_ascii=False, indent=2),
+                    "final_architecture": json.dumps(final_solution, ensure_ascii=False, indent=2),
+                    "contracts": json.dumps(contracts, ensure_ascii=False, indent=2)
+                }
+            )
+            md_result = self.llm_client.call_llm_with_fallback(
+                md_prompt["system_prompt"],
+                md_prompt["user_prompt"]
+            )
+            if md_result.get("success"):
+                landing_plan["markdown"] = md_result["content"]
+
+            self._log(PipelineStage.LANDING_PLAN_GENERATION.value, "生成JSON格式落地方案")
+            json_prompt = self.prompt_engine.generate_prompt(
+                "final_landing_plan_json",
+                {
+                    "structured_requirement": json.dumps(structured_requirement, ensure_ascii=False, indent=2),
+                    "final_architecture": json.dumps(final_solution, ensure_ascii=False, indent=2),
+                    "contracts": json.dumps(contracts, ensure_ascii=False, indent=2)
+                }
+            )
+            json_result = self.llm_client.call_llm_with_fallback(
+                json_prompt["system_prompt"],
+                json_prompt["user_prompt"]
+            )
+            if json_result.get("success"):
+                landing_plan["json"] = self._parse_llm_json_output(json_result["content"])
+
+            self._log(PipelineStage.LANDING_PLAN_GENERATION.value, "落地方案生成完成", "SUCCESS")
+
+            return {
+                "success": True,
+                "stage": PipelineStage.LANDING_PLAN_GENERATION.value,
+                "landing_plan": landing_plan,
+                "timestamp": datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            self._log(PipelineStage.LANDING_PLAN_GENERATION.value,
+                     f"落地方案生成异常: {str(e)}", "ERROR")
+            return {
+                "success": False,
+                "error": str(e),
+                "stage": PipelineStage.LANDING_PLAN_GENERATION.value
+            }
+
+
+    def run_ide_bundle_generation(self, final_solution: Dict[str, Any], 
+                                   contracts: Dict[str, Any],
+                                   structured_requirement: Optional[Dict[str, Any]] = None,
+                                   landing_plan: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+
+        """
+
+        阶段5：IDE引导包生成（全局+模块级）
+
+        按照AC范式设计意图：有多少个模块就有多少个IDE的引导包，再加1个全局引导包
+
+        Args:
+
+            final_solution: 最终架构方案，包含 modules 列表
+
+            contracts: 契约数据
+            
+            structured_requirement: 结构化需求
+            
+            landing_plan: 落地方案
+
+        Returns:
+
+            IDE引导包，包含 global 和 modules
+
+        """
+
+        self._log(PipelineStage.IDE_BUNDLE_GENERATION.value, "开始IDE引导包生成（全局+模块级）")
+
+
+        try:
+
+            # 提取 modules 列表
+            modules_list = []
+            if "fused_solution" in final_solution:
+                fused_solution = final_solution["fused_solution"]
+                if "architecture" in fused_solution:
+                    modules_list = fused_solution["architecture"].get("modules", [])
+            if not modules_list:
+                modules_list = final_solution.get("modules", [])
+
+            # 构造 project_info
+            project_info = {
+                "architect_style": final_solution.get("fused_solution", {}).get("architect_style", ""),
+                "tech_stack": final_solution.get("fused_solution", {}).get("tech_stack", {}),
+                "modules_count": len(modules_list)
+            }
+
+            # 生成agent.md
+            self._log(PipelineStage.IDE_BUNDLE_GENERATION.value, "生成agent.md")
+
+            agent_prompt = self.prompt_engine.generate_prompt(
+
+                "agent_md_gen",
+
+                {
+
+                    "final_solution": json.dumps(final_solution, ensure_ascii=False, indent=2),
+
+                    "contracts": json.dumps(contracts, ensure_ascii=False, indent=2),
+
+                    "modules": json.dumps(modules_list, ensure_ascii=False, indent=2),
+
+                    "project_info": json.dumps(project_info, ensure_ascii=False, indent=2)
+
+                }
+
+            )
+
+            agent_result = self.llm_client.call_llm_with_fallback(
+
+                agent_prompt["system_prompt"],
+
+                agent_prompt["user_prompt"]
+
+            )
+
+            agent_md_content = agent_result.get("content", "") if agent_result.get("success") else ""
+
+
+            # 最终返回的结果包，包含全局+所有模块引导包
+            ide_bundles = {
+                "agent_md": agent_md_content,
+                "global": None,
+                "modules": []
+            }
+
+
+            # --------------------------
+            # 第一步：生成全局引导包（固定1份）
+            # --------------------------
+            self._log(PipelineStage.IDE_BUNDLE_GENERATION.value, "生成全局IDE引导包")
+
+            global_prompt = self.prompt_engine.generate_prompt(
+
+                "global_ide_bundle",
+
+                {
+
+                    "final_solution": json.dumps(final_solution, ensure_ascii=False, indent=2),
+
+                    "final_architecture": json.dumps(final_solution, ensure_ascii=False, indent=2),
+
+                    "contracts": json.dumps(contracts, ensure_ascii=False, indent=2),
+
+                    "structured_requirement": json.dumps(structured_requirement or {}, ensure_ascii=False, indent=2),
+
+                    "landing_plan": json.dumps(landing_plan or {}, ensure_ascii=False, indent=2),
+
+                    "agent_md": agent_md_content
+
+                }
+
+            )
+
+            global_result = self.llm_client.call_llm_with_fallback(
+
+                global_prompt["system_prompt"],
+
+                global_prompt["user_prompt"]
+
+            )
+
+            ide_bundles["global"] = global_result.get("content", "") if global_result.get("success") else ""
+
+
+            # --------------------------
+            # 第二步：遍历所有模块，动态生成每个模块的引导包
+            # --------------------------
+            
+            self._log(PipelineStage.IDE_BUNDLE_GENERATION.value, f"开始生成 {len(modules_list)} 个模块的IDE引导包")
+
+            for idx, module in enumerate(modules_list):
+                self._log(PipelineStage.IDE_BUNDLE_GENERATION.value, f"生成模块 {idx+1}/{len(modules_list)}: {module.get('name', '未命名')}")
+
+                module_prompt = self.prompt_engine.generate_prompt(
+
+                    "module_ide_bundle",
+
+                    {
+
+                        "module_info": json.dumps(module, ensure_ascii=False, indent=2),
+
+                        "final_solution": json.dumps(final_solution, ensure_ascii=False, indent=2),
+
+                        "final_architecture": json.dumps(final_solution, ensure_ascii=False, indent=2),
+
+                        "contracts": json.dumps(contracts, ensure_ascii=False, indent=2),
+
+                        "structured_requirement": json.dumps(structured_requirement or {}, ensure_ascii=False, indent=2),
+
+                        "agent_md": agent_md_content
+
+                    }
+
+                )
+
+                module_result = self.llm_client.call_llm_with_fallback(
+
+                    module_prompt["system_prompt"],
+
+                    module_prompt["user_prompt"]
+
+                )
+
+                # 把模块引导包存入列表，带上模块标识方便后续保存
+                ide_bundles["modules"].append({
+
+                    "module_id": idx,
+
+                    "module_name": module.get("name", f"module_{idx}"),
+
+                    "content": module_result.get("content", "") if module_result.get("success") else ""
+
+                })
+
+
+            self._log(PipelineStage.IDE_BUNDLE_GENERATION.value, "IDE引导包生成完成（全局+模块级）", "SUCCESS")
+
+
+            return {
+
+                "success": True,
+
+                "stage": PipelineStage.IDE_BUNDLE_GENERATION.value,
+
+                "ide_bundle": ide_bundles,
+
+                "timestamp": datetime.now().isoformat()
+
+            }
+
+
+        except Exception as e:
+
+            self._log(PipelineStage.IDE_BUNDLE_GENERATION.value, 
+
+                     f"IDE引导包生成异常: {str(e)}", "ERROR")
+
+            return {
+
+                "success": False,
+
+                "error": str(e),
+
+                "stage": PipelineStage.IDE_BUNDLE_GENERATION.value
+
+            }
+
+
+
+    def run_full_pipeline(self, requirement_text: str, 
+
+                          project_id: Optional[str] = None) -> Dict[str, Any]:
+
+        """
+
+        运行完整Pipeline
+
+
+
+        Args:
+
+            requirement_text: 原始需求文本
+
+            project_id: 项目ID
+
+
+
+        Returns:
+
+            完整Pipeline结果
+
+        """
+
+        self._log("pipeline_start", "开始完整Pipeline执行", "INFO")
+
+
+
+        pipeline_result = {
+
+            "project_id": project_id,
+
+            "started_at": datetime.now().isoformat(),
+
+            "stages": {},
+
+            "success": False,
+
+            "error": None
+
+        }
+
+
+
+        try:
+
+            # 阶段1: 需求锚定
+
+            stage1_result = self.run_requirement_anchoring(requirement_text, project_id)
+
+            pipeline_result["stages"][PipelineStage.REQUIREMENT_ANCHORING.value] = stage1_result
+
+            if not stage1_result["success"]:
+
+                pipeline_result["error"] = stage1_result.get("error")
+
+                return pipeline_result
+
+
+
+            # 阶段2: 需求校验
+
+            stage2_result = self.run_requirement_validation(stage1_result["structured_requirement"])
+
+            pipeline_result["stages"][PipelineStage.REQUIREMENT_VALIDATION.value] = stage2_result
+
+            if not stage2_result["success"]:
+
+                pipeline_result["error"] = stage2_result.get("error")
+
+                return pipeline_result
+
+
+
+            # 阶段3: 架构迭代
+
+            stage3_result = self.run_architecture_iteration(stage2_result["validation_result"])
+
+            pipeline_result["stages"][PipelineStage.ARCHITECTURE_ITERATION.value] = stage3_result
+
+            if not stage3_result["success"]:
+
+                pipeline_result["error"] = stage3_result.get("error")
+
+                return pipeline_result
+
+
+
+            # 阶段4: 契约生成
+
+            stage4_result = self.run_contract_generation(stage3_result["final_solution"])
+
+            pipeline_result["stages"][PipelineStage.CONTRACT_GENERATION.value] = stage4_result
+
+            if not stage4_result["success"]:
+
+                pipeline_result["error"] = stage4_result.get("error")
+
+                return pipeline_result
+
+
+
+            # 阶段4.5: 落地方案生成
+            stage4_5_result = self.run_landing_plan_generation(
+                stage1_result["structured_requirement"],
+                stage3_result["final_solution"],
+                stage4_result["contracts"]
+            )
+            pipeline_result["stages"][PipelineStage.LANDING_PLAN_GENERATION.value] = stage4_5_result
+            if not stage4_5_result["success"]:
+                pipeline_result["error"] = stage4_5_result.get("error")
+                return pipeline_result
+
+            # 阶段5: IDE引导包生成
+
+            stage5_result = self.run_ide_bundle_generation(
+
+                stage3_result["final_solution"],
+
+                stage4_result["contracts"],
+                stage1_result["structured_requirement"],
+                stage4_5_result["landing_plan"]
+
+            )
+
+            pipeline_result["stages"][PipelineStage.IDE_BUNDLE_GENERATION.value] = stage5_result
+
+            if not stage5_result["success"]:
+
+                pipeline_result["error"] = stage5_result.get("error")
+
+                return pipeline_result
+
+
+
+            pipeline_result["success"] = True
+
+            pipeline_result["completed_at"] = datetime.now().isoformat()
+
+            self._log("pipeline_complete", "完整Pipeline执行成功", "SUCCESS")
+
+
+
+        except Exception as e:
+
+            pipeline_result["error"] = str(e)
+
+            self._log("pipeline_error", f"Pipeline执行异常: {str(e)}", "ERROR")
+
+
+
+        return pipeline_result
+
+
+
+    def _parse_llm_json_output(self, content: str) -> Dict[str, Any]:
+
+        """
+
+        解析LLM输出的JSON
+
+
+
+        Args:
+
+            content: LLM输出内容
+
+
+
+        Returns:
+
+            解析后的字典
+
+        """
+
+        try:
+
+            # 尝试直接解析
+
+            return json.loads(content)
+
+        except json.JSONDecodeError:
+
+            # 尝试提取JSON块
+
+            import re
+
+            json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', content)
+
+            if json_match:
+
+                try:
+
+                    return json.loads(json_match.group(1))
+
+                except json.JSONDecodeError:
+
+                    pass
+
+            # 如果还是失败，返回原始内容包装
+
+            return {"raw_content": content}
+
+
+
+    def get_logs(self) -> List[Dict[str, Any]]:
+
+        """
+
+        获取Pipeline日志
+
+
+
+        Returns:
+
+            日志列表
+
+        """
+
+        return self.pipeline_logs
+
+
+
+    def clear_logs(self):
+
+        """清空Pipeline日志"""
+
+        self.pipeline_logs.clear()
+
+
+
+
+
+# 全局单例
+
+_pipeline_orchestrator_instance: Optional[PipelineOrchestrator] = None
+
+
+
+
+
+def get_pipeline_orchestrator() -> PipelineOrchestrator:
+
+    """
+
+    获取Pipeline编排器单例
+
+
+
+    Returns:
+
+        PipelineOrchestrator实例
+
+    """
+
+    global _pipeline_orchestrator_instance
+
+    if _pipeline_orchestrator_instance is None:
+
+        _pipeline_orchestrator_instance = PipelineOrchestrator()
+
+    return _pipeline_orchestrator_instance
+
+
+
+
+
+def reset_pipeline_orchestrator():
+
+    """重置Pipeline编排器单例"""
+
+    global _pipeline_orchestrator_instance
+
+    _pipeline_orchestrator_instance = None
+
+
+

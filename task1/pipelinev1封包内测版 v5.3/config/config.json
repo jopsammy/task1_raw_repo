@@ -1,0 +1,52 @@
+{
+  "project": {
+    "name": "需求结构化分析工具",
+    "version": "5.3.0",
+    "description": "基于AC范式的需求结构化分析工具"
+  },
+  "llm": {
+    "providers": {
+      "LLM-1-S": {
+        "api_key": "b97e5e57-a4e6-47f0-8bfa-af5aa1d2b325",
+        "api_base": "https://ark.cn-beijing.volces.com/api/coding/v3",
+        "model": "doubao-seed-2-0-pro-260215",
+        "temperature": 1,
+        "max_tokens": 8192,
+        "timeout": 3000
+      },
+      "LLM-2-G": {
+        "api_key": "sk-8XhWKeqDX0lbCCBLCl8sFL4iKlEH4qOkZ6pzfLDttz0soaQd",
+        "api_base": "https://open.cherryin.cc/v1",
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 1,
+        "max_tokens": 8192,
+        "timeout": 3000
+      },
+      "LLM-3-Q": {
+        "api_key": "sk-8f5c2ba7455c49fabe9f7519ceeb39b9",
+        "api_base": "https://api.deepseek.com/v1",
+        "model": "deepseek-v4-pro",
+        "temperature": 1,
+        "max_tokens": 8192,
+        "timeout": 3000
+      }
+    },
+    "default_provider": "LLM-1-S"
+  },
+  "workspace": {
+    "root_dir": "workspace",
+    "data_dir": "workspace/data",
+    "backup_dir": "workspace/backups",
+    "export_dir": "workspace/exports"
+  },
+  "storage": {
+    "auto_backup": true,
+    "max_backup_count": 50,
+    "content_fingerprint_algorithm": "md5"
+  },
+  "ui": {
+    "theme": "light",
+    "page_title": "需求结构化分析管道",
+    "page_icon": "📊"
+  }
+}

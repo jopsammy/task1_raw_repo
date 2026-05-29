@@ -1,0 +1,10 @@
+{
+  "anchor_id": "23aa5436fa7979a0130038e48e2c2648",
+  "anchor_type": "requirement",
+  "project_id": "20260301_361617",
+  "req_id": "2cd2eb0d-df8c-4780-a1d1-16cf5572b6e7",
+  "content": "用户可以登录系统",
+  "frozen": true,
+  "created_at": "2026-03-01T18:40:17.241146",
+  "updated_at": "2026-03-01T18:40:17.243086"
+}

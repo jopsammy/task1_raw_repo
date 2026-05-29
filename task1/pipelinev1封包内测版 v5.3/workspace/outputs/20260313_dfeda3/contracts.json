@@ -1,0 +1,553 @@
+{
+  "data": {
+    "data_contracts": [
+      {
+        "name": "DomainEvent",
+        "description": "领域基础事件，所有业务事件的父结构，包含通用事件属性，保障数据可溯源与并发安全",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "DomainEvent",
+          "type": "object",
+          "required": [
+            "eventId",
+            "aggregateId",
+            "version",
+            "timestamp",
+            "operator",
+            "eventType"
+          ],
+          "properties": {
+            "eventId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "全局唯一事件ID"
+            },
+            "aggregateId": {
+              "type": "string",
+              "description": "关联的财务模型ID"
+            },
+            "version": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "乐观锁版本号，保障并发操作不冲突"
+            },
+            "timestamp": {
+              "type": "string",
+              "format": "date-time",
+              "description": "事件发生的UTC时间"
+            },
+            "operator": {
+              "type": "object",
+              "title": "RoleContext",
+              "required": [
+                "userId",
+                "role"
+              ],
+              "properties": {
+                "userId": {
+                  "type": "string",
+                  "description": "操作者用户ID"
+                },
+                "role": {
+                  "type": "string",
+                  "description": "操作者所属角色"
+                }
+              },
+              "description": "操作者上下文信息"
+            },
+            "eventType": {
+              "type": "string",
+              "enum": [
+                "LINE_ITEM_UPDATED",
+                "CALCULATION_BATCH",
+                "MODEL_CREATED",
+                "PERMISSION_UPDATED"
+              ],
+              "description": "事件类型枚举"
+            }
+          }
+        }
+      },
+      {
+        "name": "LineItemUpdatedEvent",
+        "description": "行项更新事件，记录财务模型单行项值变更的明细信息",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "LineItemUpdatedEvent",
+          "type": "object",
+          "required": [
+            "baseEvent",
+            "itemId",
+            "previousValue",
+            "newValue",
+            "source"
+          ],
+          "properties": {
+            "baseEvent": {
+              "$ref": "#/definitions/DomainEvent",
+              "description": "基础事件通用属性"
+            },
+            "itemId": {
+              "type": "string",
+              "description": "行项唯一ID，替代绝对坐标避免行列变更导致历史事件失效"
+            },
+            "previousValue": {
+              "type": "number",
+              "description": "行项变更前的值"
+            },
+            "newValue": {
+              "type": "number",
+              "description": "行项变更后的值"
+            },
+            "source": {
+              "type": "string",
+              "enum": [
+                "USER_OPERATE",
+                "AI_GENERATED",
+                "SYSTEM_CALCULATION"
+              ],
+              "description": "操作来源枚举"
+            }
+          },
+          "definitions": {
+            "DomainEvent": {
+              "$ref": "#/data_contracts/0/schema"
+            }
+          }
+        }
+      },
+      {
+        "name": "CalculationBatchEvent",
+        "description": "批量计算事件，记录DAG重算后批次更新的所有行项信息与计算耗时",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "CalculationBatchEvent",
+          "type": "object",
+          "required": [
+            "baseEvent",
+            "updatedItemIds",
+            "calculationTimeMs"
+          ],
+          "properties": {
+            "baseEvent": {
+              "$ref": "#/definitions/DomainEvent",
+              "description": "基础事件通用属性"
+            },
+            "updatedItemIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "本次批次计算更新的行项ID列表"
+            },
+            "calculationTimeMs": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "本次批次计算的耗时，单位为毫秒"
+            }
+          },
+          "definitions": {
+            "DomainEvent": {
+              "$ref": "#/data_contracts/0/schema"
+            }
+          }
+        }
+      },
+      {
+        "name": "FinancialModelSnapshot",
+        "description": "财务模型快照，特定版本的模型全量状态，用于快速加载避免全量事件重放",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "FinancialModelSnapshot",
+          "type": "object",
+          "required": [
+            "modelId",
+            "version",
+            "lineItems",
+            "snapshotTime"
+          ],
+          "properties": {
+            "modelId": {
+              "type": "string",
+              "description": "关联的财务模型ID"
+            },
+            "version": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "对应事件的乐观锁版本号，与事件版本保持对齐"
+            },
+            "lineItems": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "title": "LineItem",
+                "required": [
+                  "itemId",
+                  "value",
+                  "name"
+                ],
+                "properties": {
+                  "itemId": {
+                    "type": "string",
+                    "description": "行项唯一ID"
+                  },
+                  "value": {
+                    "type": "number",
+                    "description": "行项当前值"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "行项名称"
+                  }
+                }
+              },
+              "description": "当前版本下的全量行项列表"
+            },
+            "snapshotTime": {
+              "type": "string",
+              "format": "date-time",
+              "description": "快照生成的UTC时间"
+            }
+          }
+        }
+      },
+      {
+        "name": "RolePermission",
+        "description": "角色权限配置，定义不同角色允许的操作范围与数据访问权限",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "RolePermission",
+          "type": "object",
+          "required": [
+            "role",
+            "allowedActions",
+            "dataScope"
+          ],
+          "properties": {
+            "role": {
+              "type": "string",
+              "enum": [
+                "ADMIN",
+                "FINANCE_AUDITOR",
+                "FINANCE_EDITOR",
+                "VIEWER"
+              ],
+              "description": "角色类型枚举"
+            },
+            "allowedActions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "EDIT_LINE_ITEM",
+                  "CALCULATE_MODEL",
+                  "EXPORT_REPORT",
+                  "INVITE_USER",
+                  "MODIFY_PERMISSION"
+                ]
+              },
+              "description": "当前角色允许执行的操作列表"
+            },
+            "dataScope": {
+              "type": "string",
+              "enum": [
+                "ALL",
+                "DEPARTMENT",
+                "SELF"
+              ],
+              "description": "当前角色可访问的数据范围"
+            }
+          }
+        }
+      }
+    ],
+    "relationships": [
+      {
+        "from": "LineItemUpdatedEvent",
+        "to": "DomainEvent",
+        "type": "one-to-one",
+        "description": "每个行项更新事件包含1个基础领域事件，继承通用事件能力"
+      },
+      {
+        "from": "CalculationBatchEvent",
+        "to": "DomainEvent",
+        "type": "one-to-one",
+        "description": "每个批量计算事件包含1个基础领域事件，继承通用事件能力"
+      },
+      {
+        "from": "FinancialModelSnapshot",
+        "to": "DomainEvent",
+        "type": "many-to-one",
+        "description": "每个快照对应1个版本的领域事件集合，快照版本号与事件版本号对齐"
+      },
+      {
+        "from": "DomainEvent",
+        "to": "RolePermission",
+        "type": "many-to-one",
+        "description": "每个事件的操作者角色关联1套权限配置，用于操作合法性校验"
+      }
+    ],
+    "contract_snapshot": {
+      "version": "1.0.0",
+      "generated_at": "2024-05-20T12:00:00Z",
+      "read_only": true,
+      "storage_path": "public/schema/contract_snapshot_1.0.0.json",
+      "data_contracts": [
+        {
+          "name": "DomainEvent",
+          "description": "领域基础事件，所有业务事件的父结构，包含通用事件属性，保障数据可溯源与并发安全",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": "DomainEvent",
+            "type": "object",
+            "required": [
+              "eventId",
+              "aggregateId",
+              "version",
+              "timestamp",
+              "operator",
+              "eventType"
+            ],
+            "properties": {
+              "eventId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "全局唯一事件ID"
+              },
+              "aggregateId": {
+                "type": "string",
+                "description": "关联的财务模型ID"
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "乐观锁版本号，保障并发操作不冲突"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time",
+                "description": "事件发生的UTC时间"
+              },
+              "operator": {
+                "type": "object",
+                "title": "RoleContext",
+                "required": [
+                  "userId",
+                  "role"
+                ],
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "description": "操作者用户ID"
+                  },
+                  "role": {
+                    "type": "string",
+                    "description": "操作者所属角色"
+                  }
+                },
+                "description": "操作者上下文信息"
+              },
+              "eventType": {
+                "type": "string",
+                "enum": [
+                  "LINE_ITEM_UPDATED",
+                  "CALCULATION_BATCH",
+                  "MODEL_CREATED",
+                  "PERMISSION_UPDATED"
+                ],
+                "description": "事件类型枚举"
+              }
+            }
+          }
+        },
+        {
+          "name": "LineItemUpdatedEvent",
+          "description": "行项更新事件，记录财务模型单行项值变更的明细信息",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": "LineItemUpdatedEvent",
+            "type": "object",
+            "required": [
+              "baseEvent",
+              "itemId",
+              "previousValue",
+              "newValue",
+              "source"
+            ],
+            "properties": {
+              "baseEvent": {
+                "$ref": "#/contract_snapshot/data_contracts/0/schema",
+                "description": "基础事件通用属性"
+              },
+              "itemId": {
+                "type": "string",
+                "description": "行项唯一ID，替代绝对坐标避免行列变更导致历史事件失效"
+              },
+              "previousValue": {
+                "type": "number",
+                "description": "行项变更前的值"
+              },
+              "newValue": {
+                "type": "number",
+                "description": "行项变更后的值"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "USER_OPERATE",
+                  "AI_GENERATED",
+                  "SYSTEM_CALCULATION"
+                ],
+                "description": "操作来源枚举"
+              }
+            }
+          }
+        },
+        {
+          "name": "CalculationBatchEvent",
+          "description": "批量计算事件，记录DAG重算后批次更新的所有行项信息与计算耗时",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": "CalculationBatchEvent",
+            "type": "object",
+            "required": [
+              "baseEvent",
+              "updatedItemIds",
+              "calculationTimeMs"
+            ],
+            "properties": {
+              "baseEvent": {
+                "$ref": "#/contract_snapshot/data_contracts/0/schema",
+                "description": "基础事件通用属性"
+              },
+              "updatedItemIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "本次批次计算更新的行项ID列表"
+              },
+              "calculationTimeMs": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "本次批次计算的耗时，单位为毫秒"
+              }
+            }
+          }
+        },
+        {
+          "name": "FinancialModelSnapshot",
+          "description": "财务模型快照，特定版本的模型全量状态，用于快速加载避免全量事件重放",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": "FinancialModelSnapshot",
+            "type": "object",
+            "required": [
+              "modelId",
+              "version",
+              "lineItems",
+              "snapshotTime"
+            ],
+            "properties": {
+              "modelId": {
+                "type": "string",
+                "description": "关联的财务模型ID"
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "对应事件的乐观锁版本号，与事件版本保持对齐"
+              },
+              "lineItems": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "title": "LineItem",
+                  "required": [
+                    "itemId",
+                    "value",
+                    "name"
+                  ],
+                  "properties": {
+                    "itemId": {
+                      "type": "string",
+                      "description": "行项唯一ID"
+                    },
+                    "value": {
+                      "type": "number",
+                      "description": "行项当前值"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "行项名称"
+                    }
+                  }
+                },
+                "description": "当前版本下的全量行项列表"
+              },
+              "snapshotTime": {
+                "type": "string",
+                "format": "date-time",
+                "description": "快照生成的UTC时间"
+              }
+            }
+          }
+        },
+        {
+          "name": "RolePermission",
+          "description": "角色权限配置，定义不同角色允许的操作范围与数据访问权限",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": "RolePermission",
+            "type": "object",
+            "required": [
+              "role",
+              "allowedActions",
+              "dataScope"
+            ],
+            "properties": {
+              "role": {
+                "type": "string",
+                "enum": [
+                  "ADMIN",
+                  "FINANCE_AUDITOR",
+                  "FINANCE_EDITOR",
+                  "VIEWER"
+                ],
+                "description": "角色类型枚举"
+              },
+              "allowedActions": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "EDIT_LINE_ITEM",
+                    "CALCULATE_MODEL",
+                    "EXPORT_REPORT",
+                    "INVITE_USER",
+                    "MODIFY_PERMISSION"
+                  ]
+                },
+                "description": "当前角色允许执行的操作列表"
+              },
+              "dataScope": {
+                "type": "string",
+                "enum": [
+                  "ALL",
+                  "DEPARTMENT",
+                  "SELF"
+                ],
+                "description": "当前角色可访问的数据范围"
+              }
+            }
+          }
+        }
+      ],
+      "note": "本文件为契约快照，只读，禁止手动修改，所有接口/存储数据结构必须与本契约保持一致"
+    }
+  },
+  "mock": "\"\"\"\nMock实现模块\n本模块提供架构方案中所有接口的Mock实现，用于开发和测试\n支持Mock/真实实现一键切换，可配置固定返回、异常抛出等行为\n\"\"\"\n\nfrom typing import List, Dict, Any, Optional\nfrom datetime import datetime\nimport random\nimport os\nimport json\nfrom uuid import uuid4\nfrom decimal import Decimal\n\n\nclass MockManager:\n    \"\"\"\n    Mock管理器：统一管理Mock切换\n    支持通过配置文件或环境变量一键切换Mock/真实实现\n    \"\"\"\n    \n    MOCK_CONFIG_PATH = os.path.join(\n        os.path.dirname(os.path.abspath(__file__)),\n        \"..\", \"..\", \"config\", \"mock_config.json\"\n    )\n    \n    @classmethod\n    def _load_config(cls) -> Dict[str, Any]:\n        \"\"\"加载Mock配置文件\"\"\"\n        if os.path.exists(cls.MOCK_CONFIG_PATH):\n            try:\n                with open(cls.MOCK_CONFIG_PATH, \"r\", encoding=\"utf-8\") as f:\n                    return json.load(f)\n            except Exception:\n                pass\n        return {}\n    \n    @classmethod\n    def is_mock_enabled(cls, module_name: str) -> bool:\n        \"\"\"\n        判断指定模块是否启用Mock\n        \n        :param module_name: 模块名称\n        :return: 是否启用Mock\n        \"\"\"\n        config = cls._load_config()\n        module_config = config.get(module_name, {})\n        return module_config.get(\"enabled\", True)\n    \n    @classmethod\n    def set_mock_mode(cls, module_name: str, enabled: bool):\n        \"\"\"\n        设置模块的Mock模式\n        \n        :param module_name: 模块名称\n        :param enabled: 是否启用Mock\n        \"\"\"\n        config = cls._load_config()\n        if module_name not in config:\n            config[module_name] = {}\n        config[module_name][\"enabled\"] = enabled\n        os.makedirs(os.path.dirname(cls.MOCK_CONFIG_PATH), exist_ok=True)\n        with open(cls.MOCK_CONFIG_PATH, \"w\", encoding=\"utf-8\") as f:\n            json.dump(config, f, ensure_ascii=False, indent=2)\n    \n    @classmethod\n    def get_mock_config(cls, module_name: str) -> Dict[str, Any]:\n        \"\"\"\n        获取模块的Mock配置\n        \n        :param module_name: 模块名称\n        :return: Mock配置字典\n        \"\"\"\n        config = cls._load_config()\n        return config.get(module_name, {})\n\n\nclass MockCommandService:\n    \"\"\"命令调度服务Mock实现\"\"\"\n    \n    MODULE_NAME = \"command_service\"\n    \n    def __init__(self, config: Optional[Dict[str, Any]] = None):\n        \"\"\"\n        初始化Mock模块\n        \n        :param config: 配置字典，可配置Mock行为\n        \"\"\"\n        self.config = config or {}\n        self._mock_config = MockManager.get_mock_config(self.MODULE_NAME)\n    \n    def dispatch_command(self, command: Dict[str, Any], jwt_token: str) -> Dict[str, Any]:\n        \"\"\"\n        统一命令入口Mock实现\n        \n        :param command: 命令对象\n        :param jwt_token: 用户鉴权Token\n        :return: 命令受理回执\n        \"\"\"\n        if self._mock_config.get(\"raise_error\", False):\n            raise ValueError(f\"Mock命令执行错误: {random.choice(['权限不足', '命令参数非法', '乐观锁冲突'])}\")\n        \n        fixed_value = self._mock_config.get(\"fixed_value\")\n        if fixed_value is not None:\n            return fixed_value\n        \n        return {\n            \"receipt_id\": str(uuid4()),\n            \"status\": \"SUCCESS\",\n            \"message\": \"命令已受理并执行成功\",\n            \"event_id\": str(uuid4()),\n            \"new_version\": random.randint(1, 1000),\n            \"created_at\": datetime.now().isoformat()\n        }\n\n\nclass MockModelStreamService:\n    \"\"\"模型增量推送服务Mock实现\"\"\"\n    \n    MODULE_NAME = \"model_stream_service\"\n    \n    def __init__(self, config: Optional[Dict[str, Any]] = None):\n        \"\"\"\n        初始化Mock模块\n        \n        :param config: 配置字典，可配置Mock行为\n        \"\"\"\n        self.config = config or {}\n        self._mock_config = MockManager.get_mock_config(self.MODULE_NAME)\n    \n    def stream_model_updates(self, model_id: str, client_version: int) -> List[Dict[str, Any]]:\n        \"\"\"\n        增量状态推送Mock实现\n        \n        :param model_id: 财务模型ID\n        :param client_version: 客户端当前版本号\n        :return: 增量状态补丁列表\n        \"\"\"\n        if self._mock_config.get(\"raise_error\", False):\n            raise RuntimeError(\"Mock长连接异常断开\")\n        \n        fixed_value = self._mock_config.get(\"fixed_value\")\n        if fixed_value is not None:\n            return fixed_value\n        \n        patch_count = random.randint(1, 5)\n        patches = []\n        for i in range(patch_count):\n            version = client_version + i + 1\n            patches.append({\n                \"patch_id\": str(uuid4()),\n                \"version\": version,\n                \"event_type\": random.choice([\"LINE_ITEM_UPDATED\", \"BATCH_CALCULATED\", \"MODEL_METADATA_UPDATED\"]),\n                \"patch_content\": {\n                    \"updated_items\": [\n                        {\n                            \"item_id\": f\"item_{random.randint(1000, 9999)}\",\n                            \"field\": \"amount\",\n                            \"value\": str(Decimal(random.randint(100, 100000)) / Decimal(100))\n                        }\n                    ]\n                },\n                \"timestamp\": datetime.now().isoformat(),\n                \"operator\": {\n                    \"role\": random.choice([\"FINANCE_ADMIN\", \"FINANCE_EDITOR\", \"AI_ASSISTANT\"]),\n                    \"user_id\": f\"user_{random.randint(100, 999)}\"\n                }\n            })\n        return patches\n\n\nclass MockCalculateService:\n    \"\"\"模型计算服务Mock实现\"\"\"\n    \n    MODULE_NAME = \"calculate_service\"\n    \n    def __init__(self, config: Optional[Dict[str, Any]] = None):\n        \"\"\"\n        初始化Mock模块\n        \n        :param config: 配置字典，可配置Mock行为\n        \"\"\"\n        self.config = config or {}\n        self._mock_config = MockManager.get_mock_config(self.MODULE_NAME)\n    \n    def calculate_model(self, model_id: str, calc_range: str = \"增量\") -> Dict[str, Any]:\n        \"\"\"\n        模型重算Mock实现\n        \n        :param model_id: 财务模型ID\n        :param calc_range: 计算范围 全量/增量\n        :return: 计算任务信息\n        \"\"\"\n        if self._mock_config.get(\"raise_error\", False):\n            raise RuntimeError(f\"Mock计算异常: 模型{model_id}不存在\")\n        \n        fixed_value = self._mock_config.get(\"fixed_value\")\n        if fixed_value is not None:\n            return fixed_value\n        \n        return {\n            \"task_id\": str(uuid4()),\n            \"model_id\": model_id,\n            \"calc_range\": calc_range,\n            \"estimated_time_ms\": random.randint(500, 3000),\n            \"status\": \"PENDING\",\n            \"created_at\": datetime.now().isoformat()\n        }\n\n\nclass MockAIService:\n    \"\"\"AI服务端口Mock实现\"\"\"\n    \n    MODULE_NAME = \"ai_service\"\n    \n    def __init__(self, config: Optional[Dict[str, Any]] = None):\n        \"\"\"\n        初始化Mock模块\n        \n        :param config: 配置字典，可配置Mock行为\n        \"\"\"\n        self.config = config or {}\n        self._mock_config = MockManager.get_mock_config(self.MODULE_NAME)\n    \n    def generate_suggestions(self, func_type: str, user_prompt: str, model_context: Dict[str, Any]) -> Dict[str, Any]:\n        \"\"\"\n        AI建议生成Mock实现\n        \n        :param func_type: 功能类型 补全/改模/校验\n        :param user_prompt: 用户输入提示词\n        :param model_context: 财务模型上下文\n        :return: AI建议结果\n        \"\"\"\n        if self._mock_config.get(\"raise_error\", False):\n            raise RuntimeError(\"Mock大模型服务调用超时\")\n        \n        fixed_value = self._mock_config.get(\"fixed_value\")\n        if fixed_value is not None:\n            return fixed_value\n        \n        event_count = random.randint(1, 3)\n        suggest_events = []\n        for _ in range(event_count):\n            base_event = {\n                \"eventId\": str(uuid4()),\n                \"aggregateId\": model_context.get(\"model_id\", \"mock_model_001\"),\n                \"version\": random.randint(1, 1000),\n                \"timestamp\": datetime.now().isoformat(),\n                \"operator\": {\"role\": \"AI_ASSISTANT\", \"user_id\": \"ai_001\"},\n                \"eventType\": \"LINE_ITEM_UPDATED\"\n            }\n            suggest_events.append({\n                \"baseEvent\": base_event,\n                \"itemId\": f\"item_{random.randint(1000, 9999)}\",\n                \"previousValue\": str(Decimal(random.randint(100, 100000)) / Decimal(100)),\n                \"newValue\": str(Decimal(random.randint(100, 100000)) / Decimal(100)),\n                \"source\": \"AI_SUGGESTION\"\n            })\n        \n        return {\n            \"suggest_events\": suggest_events,\n            \"confidence\": round(random.uniform(0.7, 0.99), 2),\n            \"compliance_flag\": random.choices([True, False], weights=[0.9, 0.1])[0],\n            \"suggestion_desc\": \"根据您的输入自动调整了相关行项数值，符合财务规则要求\"\n        }\n\n\nclass MockFinancialModelRepository:\n    \"\"\"财务模型存储端口Mock实现\"\"\"\n    \n    MODULE_NAME = \"financial_repository\"\n    \n    def __init__(self, config: Optional[Dict[str, Any]] = None):\n        \"\"\"\n        初始化Mock模块\n        \n        :param config: 配置字典，可配置Mock行为\n        \"\"\"\n        self.config = config or {}\n        self._mock_config = MockManager.get_mock_config(self.MODULE_NAME)\n        self._mock_snapshot_store = {}\n    \n    def get_snapshot(self, model_id: str) -> Dict[str, Any]:\n        \"\"\"\n        获取模型快照Mock实现\n        \n        :param model_id: 财务模型ID\n        :return: 模型最新快照\n        \"\"\"\n        if self._mock_config.get(\"raise_error\", False):\n            raise RuntimeError(f\"Mock查询异常: 模型{model_id}快照不存在\")\n        \n        fixed_value = self._mock_config.get(\"fixed_value\")\n        if fixed_value is not None:\n            return fixed_value\n        \n        if model_id in self._mock_snapshot_store:\n            return self._mock_snapshot_store[model_id]\n        \n        line_items = []\n        for i in range(random.randint(10, 50)):\n            line_items.append({\n                \"item_id\": f\"item_{1000 + i}\",\n                \"item_name\": f\"行项_{i}\",\n                \"amount\": str(Decimal(random.randint(100, 100000)) / Decimal(100)),\n                \"parent_id\": None if i < 5 else f\"item_{1000 + random.randint(0, i-1)}\"\n            })\n        \n        snapshot = {\n            \"modelId\": model_id,\n            \"version\": random.randint(1, 1000),\n            \"lineItems\": line_items,\n            \"snapshotTime\": datetime.now().isoformat()\n        }\n        self._mock_snapshot_store[model_id] = snapshot\n        return snapshot\n    \n    def get_events(self, model_id: str, start_version: Optional[int] = None) -> List[Dict[str, Any]]:\n        \"\"\"\n        获取模型事件列表Mock实现\n        \n        :param model_id: 财务模型ID\n        :param start_version: 起始版本号\n        :return: 事件列表\n        \"\"\"\n        if self._mock_config.get(\"raise_error\", False):\n            raise RuntimeError(f\"Mock查询异常: 模型{model_id}事件不存在\")\n        \n        fixed_value = self._mock_config.get(\"fixed_value\")\n        if fixed_value is not None:\n            return fixed_value\n        \n        event_count = random.randint(5, 20)\n        events = []\n        start = start_version or 1\n        for v in range(start, start + event_count):\n            events.append({\n                \"eventId\": str(uuid4()),\n                \"aggregateId\": model_id,\n                \"version\": v,\n                \"timestamp\": datetime.now().isoformat(),\n                \"operator\": {\"role\": \"FINANCE_ADMIN\", \"user_id\": \"user_001\"},\n                \"eventType\": random.choice([\"LINE_ITEM_UPDATED\", \"BATCH_CALCULATED\"])\n            })\n        return events\n\n\ndef get_command_service_instance() -> Any:\n    \"\"\"获取命令服务实例：自动切换Mock/真实实现\"\"\"\n    if MockManager.is_mock_enabled(MockCommandService.MODULE_NAME):\n        return MockCommandService()\n    else:\n        try:\n            from .command_service_real import CommandServiceReal\n            return CommandServiceReal()\n        except ImportError:\n            return MockCommandService()\n\n\ndef get_model_stream_service_instance() -> Any:\n    \"\"\"获取模型流服务实例：自动切换Mock/真实实现\"\"\"\n    if MockManager.is_mock_enabled(MockModelStreamService.MODULE_NAME):\n        return MockModelStreamService()\n    else:\n        try:\n            from .model_stream_service_real import ModelStreamServiceReal\n            return ModelStreamServiceReal()\n        except ImportError:\n            return MockModelStreamService()\n\n\ndef get_calculate_service_instance() -> Any:\n    \"\"\"获取计算服务实例：自动切换Mock/真实实现\"\"\"\n    if MockManager.is_mock_enabled(MockCalculateService.MODULE_NAME):\n        return MockCalculateService()\n    else:\n        try:\n            from .calculate_service_real import CalculateServiceReal\n            return CalculateServiceReal()\n        except ImportError:\n            return MockCalculateService()\n\n\ndef get_ai_service_instance() -> Any:\n    \"\"\"获取AI服务实例：自动切换Mock/真实实现\"\"\"\n    if MockManager.is_mock_enabled(MockAIService.MODULE_NAME):\n        return MockAIService()\n    else:\n        try:\n            from .ai_service_real import AIServiceReal\n            return AIServiceReal()\n        except ImportError:\n            return MockAIService()\n\n\ndef get_financial_repository_instance() -> Any:\n    \"\"\"获取财务存储实例：自动切换Mock/真实实现\"\"\"\n    if MockManager.is_mock_enabled(MockFinancialModelRepository.MODULE_NAME):\n        return MockFinancialModelRepository()\n    else:\n        try:\n            from .financial_repository_real import FinancialModelRepositoryReal\n            return FinancialModelRepositoryReal()\n        except ImportError:\n            return MockFinancialModelRepository()",
+  "interface": {
+    "raw_content": "\"\"\"\n模块接口契约\n本文件定义了系统所有模块对外暴露的所有接口，为只读契约，禁止未经评审的修改\n\"\"\"\nfrom typing import List, Dict, Any, Optional, Awaitable, AsyncGenerator, Enum\nfrom datetime import datetime\nfrom uuid import UUID\nfrom decimal import Decimal\n\n# 自定义异常定义\nclass AuthenticationError(Exception):\n    \"\"\"认证失败异常：JWT无效、过期或身份不合法\"\"\"\n    pass\n\nclass PermissionDeniedError(Exception):\n    \"\"\"权限不足异常：操作者无对应操作权限\"\"\"\n    pass\n\nclass ValidationError(Exception):\n    \"\"\"校验失败异常：参数、业务规则或命令校验不通过\"\"\"\n    pass\n\nclass ResourceNotFoundError(Exception):\n    \"\"\"资源不存在异常：请求的模型、事件等资源不存在\"\"\"\n    pass\n\nclass OperationConflictError(Exception):\n    \"\"\"操作冲突异常：乐观锁版本冲突、并发操作冲突\"\"\"\n    pass\n\nclass IOError(Exception):\n    \"\"\"存储IO异常：数据库、缓存等存储读写失败\"\"\"\n    pass\n\nclass RuntimeError(Exception):\n    \"\"\"运行时异常：第三方服务调用失败、内部执行错误\"\"\"\n    pass\n\n# 基础枚举定义\nclass EventType(Enum):\n    \"\"\"事件类型枚举\"\"\"\n    LINE_ITEM_UPDATED = \"LINE_ITEM_UPDATED\"\n    CALCULATION_BATCH = \"CALCULATION_BATCH\"\n    ...\n\nclass SourceEnum(Enum):\n    \"\"\"操作来源枚举\"\"\"\n    USER_OPERATION = \"USER_OPERATION\"\n    AI_GENERATED = \"AI_GENERATED\"\n    SYSTEM_CALCULATION = \"SYSTEM_CALCULATION\"\n    ...\n\nclass RoleEnum(Enum):\n    \"\"\"角色类型枚举\"\"\"\n    ADMIN = \"ADMIN\"\n    FINANCIAL_STAFF = \"FINANCIAL_STAFF\"\n    VIEWER = \"VIEWER\"\n    ...\n\nclass ActionEnum(Enum):\n    \"\"\"允许操作枚举\"\"\"\n    EDIT_MODEL = \"EDIT_MODEL\"\n    VIEW_MODEL = \"VIEW_MODEL\"\n    CALCULATE_MODEL = \"CALCULATE_MODEL\"\n    EXPORT_REPORT = \"EXPORT_REPORT\"\n    ...\n\nclass DataScopeEnum(Enum):\n    \"\"\"数据范围枚举\"\"\"\n    ALL = \"ALL\"\n    DEPARTMENT = \"DEPARTMENT\"\n    PERSONAL = \"PERSONAL\"\n    ...\n\nclass CalculationScopeEnum(Enum):\n    \"\"\"计算范围枚举\"\"\"\n    FULL = \"FULL\"\n    INCREMENTAL = \"INCREMENTAL\"\n    ...\n\n# 基础数据结构定义\nclass RoleContext:\n    \"\"\"操作者上下文\"\"\"\n    user_id: str\n    role: RoleEnum\n    department_id: Optional[str]\n    ...\n\nclass RolePermission:\n    \"\"\"角色权限配置\"\"\"\n    role: RoleEnum\n    allowed_actions: List[ActionEnum]\n    data_scope: DataScopeEnum\n    ...\n\nclass DomainEvent:\n    \"\"\"领域事件基类\"\"\"\n    event_id: UUID\n    aggregate_id: str\n    version: int\n    timestamp: datetime\n    operator: RoleContext\n    event_type: EventType\n    ...\n\nclass LineItemUpdatedEvent(DomainEvent):\n    \"\"\"行项更新事件\"\"\"\n    item_id: str\n    previous_value: Decimal\n    new_value: Decimal\n    source: SourceEnum\n    ...\n\nclass CalculationBatchEvent(DomainEvent):\n    \"\"\"批量计算事件\"\"\"\n    updated_item_ids: List[str]\n    calculation_time_ms: int\n    ...\n\nclass LineItem:\n    \"\"\"财务行项结构\"\"\"\n    item_id: str\n    name: str\n    value: Decimal\n    formula: Optional[str]\n    ...\n\nclass FinancialModelSnapshot:\n    \"\"\"财务模型快照\"\"\"\n    model_id: str\n    version: int\n    line_items: List[LineItem]\n    snapshot_time: datetime\n    ...\n\nclass Command:\n    \"\"\"命令基类\"\"\"\n    aggregate_id: str\n    version: Optional[int]\n    operator: Optional[RoleContext]\n    ...\n\nclass CommandReceipt:\n    \"\"\"命令执行回执\"\"\"\n    event_id: UUID\n    aggregate_id: str\n    new_version: int\n    success: bool\n    message: Optional[str]\n    ...\n\nclass StatePatch:\n    \"\"\"状态增量补丁\"\"\"\n    model_id: str\n    base_version: int\n    target_version: int\n    patch_data: Dict[str, Any]\n    event_type: EventType\n    ...\n\nclass AISuggestion:\n    \"\"\"AI建议结果\"\"\"\n    suggested_events: List[DomainEvent]\n    confidence: float\n    compliance_flag: bool\n    suggestion_reason: str\n    ...\n\n# 模块接口定义\nclass DomainCoreModule:\n    \"\"\"\n    领域核心层\n    存放纯财务业务规则、核心计算逻辑、事件定义、权限规则、验收规则，完全不依赖任何外部组件，定义所有对外交互的抽象端口\n    \"\"\"\n    def __init__(self, config: Optional[Dict[str, Any]] = None):\n        \"\"\"\n        初始化领域核心层\n        \n        :param config: 核心规则配置字典，包含财务计算规则、权限配置等\n        \"\"\"\n        ...\n    \n    def validate_command(self, command: Command, permission: RolePermission) -> bool:\n        \"\"\"\n        校验命令合法性与权限\n        \n        :param command: 待校验的领域命令\n        :param permission: 操作者权限配置\n        :return: 校验是否通过\n        :raises ValidationError: 命令不符合业务规则时抛出\n        :raises PermissionDeniedError: 操作者无对应操作权限时抛出\n        \"\"\"\n        ...\n    \n    def apply_event(self, snapshot: FinancialModelSnapshot, event: DomainEvent) -> FinancialModelSnapshot:\n        \"\"\"\n        将事件应用到快照生成新的快照\n        \n        :param snapshot: 原始财务模型快照\n        :param event: 待应用的领域事件\n        :return: 应用事件后的新快照\n        :raises ValidationError: 事件应用不符合业务规则时抛出\n        \"\"\"\n        ...\n\nclass EventStreamCoreModule:\n    \"\"\"\n    事件驱动核心层\n    负责命令校验、事件生成、DAG重算引擎、事件批处理、快照管理、冲突合并、事件向上转型\n    \"\"\"\n    def __init__(self, domain_core: DomainCoreModule, config: Optional[Dict[str, Any]] = None):\n        \"\"\"\n        初始化事件驱动核心层\n        \n        :param domain_core: 领域核心层实例\n        :param config: 事件流配置，包含批处理阈值、快照生成策略等\n        \"\"\"\n        ...\n    \n    def dispatch_command(self, command: Command, jwt_token: str) -> Awaitable[CommandReceipt]:\n        \"\"\"\n        统一命令入口，包含鉴权、校验，验证通过后进入事件生成管道\n        \n        :param command: 待执行的领域命令\n        :param jwt_token: 用户身份JWT令牌\n        :return: 命令执行回执\n        :raises AuthenticationError: JWT令牌无效/过期时抛出\n        :raises PermissionDeniedError: 用户无操作权限时抛出\n        :raises ValidationError: 命令校验失败时抛出\n        :raises OperationConflictError: 版本冲突操作失败时抛出\n        \"\"\"\n        ...\n    \n    def stream_model_updates(self, model_id: str, client_version: int) -> AsyncGenerator[StatePatch, None]:\n        \"\"\"\n        建立长连接推送增量状态更新，前端通过Reducer更新本地视图\n        \n        :param model_id: 待订阅的财务模型ID\n        :param client_version: 客户端当前快照版本号\n        :return: 异步生成状态增量补丁\n        :raises ResourceNotFoundError: 模型不存在时抛出\n        :raises PermissionDeniedError: 用户无模型访问权限时抛出\n        \"\"\"\n        ...\n    \n    def calculate_model(self, model_id: str, calculation_scope: CalculationScopeEnum) -> Dict[str, Any]:\n        \"\"\"\n        触发模型重算，支持异步任务执行\n        \n        :param model_id: 待计算的财务模型ID\n        :param calculation_scope: 计算范围（全量/增量）\n        :return: 包含计算任务ID、预计耗时的字典\n        :raises ResourceNotFoundError: 模型不存在时抛出\n        :raises ValidationError: 模型状态不满足计算条件时抛出\n        \"\"\"\n        ...\n\nclass VerticalFeatureModule:\n    \"\"\"\n    垂直业务切片层\n    按业务特性划分独立切片：财务计算切片、AI辅助切片、权限管控切片、报表导出切片，每个切片独立迭代\n    \"\"\"\n    def __init__(self, domain_core: DomainCoreModule, event_core: EventStreamCoreModule, config: Optional[Dict[str, Any]] = None):\n        \"\"\"\n        初始化垂直业务切片层\n        \n        :param domain_core: 领域核心层实例\n        :param event_core: 事件驱动核心层实例\n        :param config: 业务切片配置\n        \"\"\"\n        ...\n    \n    def export_financial_report(self, model_id: str, report_type: str, filters: Optional[Dict[str, Any]] = None) -> Awaitable[bytes]:\n        \"\"\"\n        导出财务报表\n        \n        :param model_id: 财务模型ID\n        :param report_type: 报表类型（Excel/PDF等）\n        :param filters: 报表数据过滤条件\n        :return: 报表文件二进制流\n        :raises ResourceNotFoundError: 模型不存在时抛出\n        :raises PermissionDeniedError: 无导出权限时抛出\n        :raises ValidationError: 报表参数错误时抛出\n        \"\"\"\n        ...\n    \n    def get_ai_suggestion(self, feature_type: str, user_prompt: str, model_context: Dict[str, Any]) -> AISuggestion:\n        \"\"\"\n        获取AI辅助操作建议\n        \n        :param feature_type: AI功能类型（公式补全/异常检测/改模建议等）\n        :param user_prompt: 用户输入的查询提示词\n        :param model_context: 当前财务模型上下文数据\n        :return: AI建议结果\n        :raises ValidationError: 请求参数错误时抛出\n        :raises RuntimeError: AI服务调用失败时抛出\n        \"\"\"\n        ...\n\nclass AntiCorruptionAdapterModule:\n    \"\"\"\n    防腐适配器层\n    实现领域核心层定义的抽象端口，对接外部组件（大模型、存储、消息、Excel、权限组件），屏蔽外部差异\n    \"\"\"\n    def __init__(self, domain_core: DomainCoreModule, config: Optional[Dict[str, Any]] = None):\n        \"\"\"\n        初始化防腐适配器层\n        \n        :param domain_core: 领域核心层实例\n        :param config: 外部组件配置\n        \"\"\"\n        ...\n    \n    def ai_service_port(self, feature_type: str, user_prompt: str, model_context: Dict[str, Any]) -> AISuggestion:\n        \"\"\"\n        AI能力抽象接口，屏蔽不同大厂商差异\n        \n        :param feature_type: AI功能类型\n        :param user_prompt: 用户输入提示词\n        :param model_context: 财务模型上下文\n        :return: AI建议结果\n        :raises RuntimeError: 第三方大模型服务调用失败时抛出\n        \"\"\"\n        ...\n    \n    def financial_model_repository_port(self, query_condition: Dict[str, Any]) -> Any:\n        \"\"\"\n        财务模型专用存储接口，仅定义业务需要的方法，避免通用冗余\n        \n        :param query_condition: 查询条件，支持模型ID、版本范围等\n        :return: 模型快照或事件列表\n        :raises ResourceNotFoundError: 查询资源不存在时抛出\n        :raises IOError: 存储读写失败时抛出\n        \"\"\"\n        ...\n    \n    def save_events(self, events: List[DomainEvent]) -> bool:\n        \"\"\"\n        批量保存领域事件到持久化存储\n        \n        :param events: 待保存的事件列表\n        :return: 保存是否成功\n        :raises IOError: 存储写入失败时抛出\n        \"\"\"\n        ...\n    \n    def save_snapshot(self, snapshot: FinancialModelSnapshot) -> bool:\n        \"\"\"\n        保存财务模型快照\n        \n        :param snapshot: 待保存的模型快照\n        :return: 保存是否成功\n        :raises IOError: 存储写入失败时抛出\n        \"\"\"\n        ...\n\n---\n\n【契约快照JSON】\n{\n  \"version\": \"1.0.0\",\n  \"generated_at\": \"2024-05-20T12:00:00Z\",\n  \"read_only\": true,\n  \"interface_contracts\": [\n    {\n      \"module_name\": \"DomainCoreModule\",\n      \"description\": \"领域核心层，存放纯财务业务规则、核心计算逻辑、事件定义、权限规则、验收规则，完全不依赖任何外部组件\",\n      \"interfaces\": [\n        {\n          \"name\": \"validate_command\",\n          \"signature\": \"def validate_command(self, command: Command, permission: RolePermission) -&gt; bool\",\n          \"description\": \"校验命令合法性与权限\",\n          \"params\": [\n            {\"name\": \"command\", \"type\": \"Command\", \"description\": \"待校验的领域命令\"},\n            {\"name\": \"permission\", \"type\": \"RolePermission\", \"description\": \"操作者权限配置\"}\n          ],\n          \"returns\": {\"type\": \"bool\", \"description\": \"校验是否通过\"},\n          \"raises\": [\n            {\"exception\": \"ValidationError\", \"description\": \"命令不符合业务规则时抛出\"},\n            {\"exception\": \"PermissionDeniedError\", \"description\": \"操作者无对应操作权限时抛出\"}\n          ]\n        },\n        {\n          \"name\": \"apply_event\",\n          \"signature\": \"def apply_event(self, snapshot: FinancialModelSnapshot, event: DomainEvent) -&gt; FinancialModelSnapshot\",\n          \"description\": \"将事件应用到快照生成新的快照\",\n          \"params\": [\n            {\"name\": \"snapshot\", \"type\": \"FinancialModelSnapshot\", \"description\": \"原始财务模型快照\"},\n            {\"name\": \"event\", \"type\": \"DomainEvent\", \"description\": \"待应用的领域事件\"}\n          ],\n          \"returns\": {\"type\": \"FinancialModelSnapshot\", \"description\": \"应用事件后的新快照\"},\n          \"raises\": [\n            {\"exception\": \"ValidationError\", \"description\": \"事件应用不符合业务规则时抛出\"}\n          ]\n        }\n      ]\n    },\n    {\n      \"module_name\": \"EventStreamCoreModule\",\n      \"description\": \"事件驱动核心层，负责命令校验、事件生成、DAG重算引擎、事件批处理、快照管理、冲突合并\",\n      \"interfaces\": [\n        {\n          \"name\": \"dispatch_command\",\n          \"signature\": \"def dispatch_command(self, command: Command, jwt_token: str) -&gt; Awaitable[CommandReceipt]\",\n          \"description\": \"统一命令入口，包含鉴权、校验，验证通过后进入事件生成管道\",\n          \"params\": [\n            {\"name\": \"command\", \"type\": \"Command\", \"description\": \"待执行的领域命令\"},\n            {\"name\": \"jwt_token\", \"type\": \"str\", \"description\": \"用户身份JWT令牌\"}\n          ],\n          \"returns\": {\"type\": \"Awaitable[CommandReceipt]\", \"description\": \"命令执行回执\"},\n          \"raises\": [\n            {\"exception\": \"AuthenticationError\", \"description\": \"JWT令牌无效/过期时抛出\"},\n            {\"exception\": \"PermissionDeniedError\", \"description\": \"用户无操作权限时抛出\"},\n            {\"exception\": \"ValidationError\", \"description\": \"命令校验失败时抛出\"},\n            {\"exception\": \"OperationConflictError\", \"description\": \"版本冲突操作失败时抛出\"}\n          ]\n        },\n        {\n          \"name\": \"stream_model_updates\",\n          \"signature\": \"def stream_model_updates(self, model_id: str, client_version: int) -&gt; AsyncGenerator[StatePatch, None]\",\n          \"description\": \"建立长连接推送增量状态更新，前端通过Reducer更新本地视图\",\n          \"params\": [\n            {\"name\": \"model_id\", \"type\": \"str\", \"description\": \"待订阅的财务模型ID\"},\n            {\"name\": \"client_version\", \"type\": \"int\", \"description\": \"客户端当前快照版本号\"}\n          ],\n          \"returns\": {\"type\": \"AsyncGenerator[StatePatch, None]\", \"description\": \"异步生成状态增量补丁\"},\n          \"raises\": [\n            {\"exception\": \"ResourceNotFoundError\", \"description\": \"模型不存在时抛出\"},\n            {\"exception\": \"PermissionDeniedError\", \"description\": \"用户无模型访问权限时抛出\"}\n          ]\n        },\n        {\n          \"name\": \"calculate_model\",\n          \"signature\": \"def calculate_model(self, model_id: str, calculation_scope: CalculationScopeEnum) -&gt; Dict[str, Any]\",\n          \"description\": \"触发模型重算，支持异步任务执行\",\n          \"params\": [\n            {\"name\": \"model_id\", \"type\": \"str\", \"description\": \"待计算的财务模型ID\"},\n            {\"name\": \"calculation_scope\", \"type\": \"CalculationScopeEnum\", \"description\": \"计算范围（全量/增量）\"}\n          ],\n          \"returns\": {\"type\": \"Dict[str, Any]\", \"description\": \"包含计算任务ID、预计耗时的字典\"},\n          \"raises\": [\n            {\"exception\": \"ResourceNotFoundError\", \"description\": \"模型不存在时抛出\"},\n            {\"exception\": \"ValidationError\", \"description\": \"模型状态不满足计算条件时抛出\"}\n          ]\n        }\n      ]\n    },\n    {\n      \"module_name\": \"VerticalFeatureModule\",\n      \"description\": \"垂直业务切片层，按业务特性划分独立切片，每个切片独立迭代\",\n      \"interfaces\": [\n        {\n          \"name\": \"export_financial_report\",\n          \"signature\": \"def export_financial_report(self, model_id: str, report_type: str, filters: Optional[Dict[str, Any]] = None) -&gt; Awaitable[bytes]\",\n          \"description\": \"导出财务报表\",\n          \"params\": [\n            {\"name\": \"model_id\", \"type"
+  }
+}

@@ -1,0 +1,77 @@
+{# 接口契约生成提示词模板 #}
+你是一位专业的API设计专家，请根据以下架构方案生成完整的接口契约（Python存根文件）。
+
+【架构方案】
+{{ final_solution }}
+
+【要求】
+1. 为每个模块生成接口存根文件（.pyi格式）
+2. 包含完整的类型注解（Type Hints）
+3. 包含详细的中文docstring
+4. 定义可能抛出的异常
+5. 生成全局契约快照，包含所有接口契约的完整定义，存入 public/schema/contract_snapshot_{version}.json，标记为只读
+
+请使用以下格式输出（纯Python代码，不要包含markdown标记）：
+
+"""
+模块接口契约
+本文件定义了模块对外暴露的所有接口
+"""
+
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+
+class ModuleName:
+    """模块说明"""
+    
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        """
+        初始化模块
+        
+        :param config: 配置字典
+        """
+        ...
+    
+    def method_name(self, param1: str, param2: int) -&gt; Dict[str, Any]:
+        """
+        方法说明
+        
+        :param param1: 参数1说明
+        :param param2: 参数2说明
+        :return: 返回值说明
+        :raises ValueError: 参数错误时抛出
+        :raises IOError: 读写失败时抛出
+        """
+        ...
+
+---
+
+【契约快照JSON】
+{
+  "version": "1.0.0",
+  "generated_at": "2025-01-01T00:00:00Z",
+  "read_only": true,
+  "interface_contracts": [
+    {
+      "module_name": "模块名称",
+      "description": "模块描述",
+      "interfaces": [
+        {
+          "name": "method_name",
+          "signature": "def method_name(self, param1: str, param2: int) -&gt; Dict[str, Any]",
+          "description": "方法说明",
+          "params": [
+            {"name": "param1", "type": "str", "description": "参数1说明"},
+            {"name": "param2", "type": "int", "description": "参数2说明"}
+          ],
+          "returns": {"type": "Dict[str, Any]", "description": "返回值说明"},
+          "raises": [
+            {"exception": "ValueError", "description": "参数错误时抛出"},
+            {"exception": "IOError", "description": "读写失败时抛出"}
+          ]
+        }
+      ]
+    }
+  ],
+  "note": "本文件为契约快照，只读，禁止手动修改"
+}

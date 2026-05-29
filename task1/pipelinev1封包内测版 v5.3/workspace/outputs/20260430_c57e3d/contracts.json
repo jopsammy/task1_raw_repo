@@ -1,0 +1,601 @@
+{
+  "data": {
+    "data_contracts": [
+      {
+        "name": "ErrorDetail",
+        "description": "错误详情数据结构，存储业务错误的编码、提示和调试信息",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "ErrorDetail",
+          "type": "object",
+          "required": [
+            "code",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "错误码，全局唯一标识错误类型"
+            },
+            "message": {
+              "type": "string",
+              "description": "用户友好提示信息，可直接展示给前端"
+            },
+            "details": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "description": "调试用详细信息，仅内部开发可见",
+              "default": null
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "GenImageRequest",
+        "description": "生图请求入参数据结构，承载用户发起的生图任务参数",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "GenImageRequest",
+          "type": "object",
+          "required": [
+            "request_id",
+            "user_id",
+            "prompt",
+            "size"
+          ],
+          "properties": {
+            "request_id": {
+              "type": "string",
+              "description": "请求唯一ID，用于幂等校验"
+            },
+            "user_id": {
+              "type": "string",
+              "description": "发起请求的用户唯一标识"
+            },
+            "prompt": {
+              "type": "string",
+              "description": "用户输入的生图提示词"
+            },
+            "size": {
+              "type": "string",
+              "description": "生成图片尺寸，格式示例：1024x1024"
+            },
+            "brand_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "品牌ID，用于获取对应VI/Logo配置",
+              "default": null
+            },
+            "skill_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "关联的技能包ID，用于复用预设生图参数",
+              "default": null
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "LogoOverlayConfig",
+        "description": "Logo叠加配置数据结构，定义品牌Logo在图片上的展示规则",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "LogoOverlayConfig",
+          "type": "object",
+          "required": [
+            "position",
+            "scale_ratio",
+            "opacity",
+            "padding"
+          ],
+          "properties": {
+            "position": {
+              "type": "string",
+              "enum": [
+                "LEFT_TOP",
+                "RIGHT_TOP"
+              ],
+              "description": "Logo在图片上的位置，支持左上角和右上角"
+            },
+            "scale_ratio": {
+              "type": "number",
+              "minimum": 0.01,
+              "maximum": 0.5,
+              "description": "Logo相对图片的比例，取值范围0.01-0.5"
+            },
+            "opacity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Logo透明度，取值范围0-1，1为完全不透明"
+            },
+            "padding": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Logo距离图片边缘的边距，单位为像素"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "TaskState",
+        "description": "生图任务状态数据结构，全链路跟踪任务执行进度和结果",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "TaskState",
+          "type": "object",
+          "required": [
+            "task_id",
+            "status",
+            "original_input"
+          ],
+          "properties": {
+            "task_id": {
+              "type": "string",
+              "description": "全局唯一任务ID，用于任务查询和关联"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "TEXT_PASSED",
+                "PROMPT_GENERATED",
+                "IMAGE_GENERATED",
+                "VI_PASSED",
+                "LOGO_ADDED",
+                "COMPLETED",
+                "FAILED"
+              ],
+              "description": "任务当前执行状态枚举"
+            },
+            "original_input": {
+              "type": "string",
+              "description": "原始用户输入的序列化字符串，用于回溯和重试"
+            },
+            "enhanced_prompt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "优化后的生图提示词",
+              "default": null
+            },
+            "raw_image_url": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "AI生成的原始图片存储地址",
+              "default": null
+            },
+            "final_image_url": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "经过Logo叠加、合规校验后的最终图片存储地址",
+              "default": null
+            },
+            "errors": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/ErrorDetail"
+              },
+              "description": "任务执行过程中产生的错误列表",
+              "default": null
+            }
+          },
+          "definitions": {
+            "ErrorDetail": {
+              "type": "object",
+              "required": [
+                "code",
+                "message"
+              ],
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "details": {
+                  "type": [
+                    "object",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "DomainEvent",
+        "description": "领域事件数据结构，记录所有业务状态变更，支持全链路追溯",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "DomainEvent",
+          "type": "object",
+          "required": [
+            "event_id",
+            "task_id",
+            "correlation_id",
+            "event_type",
+            "version",
+            "ttl",
+            "timestamp",
+            "payload"
+          ],
+          "properties": {
+            "event_id": {
+              "type": "string",
+              "description": "事件唯一ID，用于幂等校验"
+            },
+            "task_id": {
+              "type": "string",
+              "description": "关联的生图任务ID"
+            },
+            "correlation_id": {
+              "type": "string",
+              "description": "全链路追踪ID，用于跨系统日志排查"
+            },
+            "event_type": {
+              "type": "string",
+              "description": "事件类型，标识业务变更场景"
+            },
+            "version": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "事件版本号，用于兼容迭代"
+            },
+            "ttl": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "事件最大重试次数，避免无限重试"
+            },
+            "timestamp": {
+              "type": "integer",
+              "description": "事件发生时间戳，单位为毫秒"
+            },
+            "payload": {
+              "type": "object",
+              "description": "事件增量数据，存储本次变更的具体内容"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ],
+    "relationships": [
+      {
+        "from": "GenImageRequest",
+        "to": "TaskState",
+        "type": "one-to-one",
+        "description": "一个生图请求对应唯一的任务状态实例，通过request_id关联"
+      },
+      {
+        "from": "TaskState",
+        "to": "ErrorDetail",
+        "type": "one-to-many",
+        "description": "一个任务执行过程中可产生多个错误详情实例"
+      },
+      {
+        "from": "TaskState",
+        "to": "DomainEvent",
+        "type": "one-to-many",
+        "description": "一个任务的每一次状态变更都会产生对应的领域事件实例"
+      },
+      {
+        "from": "GenImageRequest",
+        "to": "LogoOverlayConfig",
+        "type": "one-to-one",
+        "description": "携带brand_id的生图请求对应唯一的Logo叠加配置实例"
+      }
+    ],
+    "contract_snapshot": {
+      "version": "1.0.0",
+      "generated_at": "2024-05-20T12:00:00Z",
+      "read_only": true,
+      "storage_path": "public/schema/contract_snapshot_1.0.0.json",
+      "data_contracts": [
+        {
+          "name": "ErrorDetail",
+          "description": "错误详情数据结构，存储业务错误的编码、提示和调试信息",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": "ErrorDetail",
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "错误码，全局唯一标识错误类型"
+              },
+              "message": {
+                "type": "string",
+                "description": "用户友好提示信息，可直接展示给前端"
+              },
+              "details": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "description": "调试用详细信息，仅内部开发可见",
+                "default": null
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "GenImageRequest",
+          "description": "生图请求入参数据结构，承载用户发起的生图任务参数",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": "GenImageRequest",
+            "type": "object",
+            "required": [
+              "request_id",
+              "user_id",
+              "prompt",
+              "size"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "description": "请求唯一ID，用于幂等校验"
+              },
+              "user_id": {
+                "type": "string",
+                "description": "发起请求的用户唯一标识"
+              },
+              "prompt": {
+                "type": "string",
+                "description": "用户输入的生图提示词"
+              },
+              "size": {
+                "type": "string",
+                "description": "生成图片尺寸，格式示例：1024x1024"
+              },
+              "brand_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "品牌ID，用于获取对应VI/Logo配置",
+                "default": null
+              },
+              "skill_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "关联的技能包ID，用于复用预设生图参数",
+                "default": null
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "LogoOverlayConfig",
+          "description": "Logo叠加配置数据结构，定义品牌Logo在图片上的展示规则",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": "LogoOverlayConfig",
+            "type": "object",
+            "required": [
+              "position",
+              "scale_ratio",
+              "opacity",
+              "padding"
+            ],
+            "properties": {
+              "position": {
+                "type": "string",
+                "enum": [
+                  "LEFT_TOP",
+                  "RIGHT_TOP"
+                ],
+                "description": "Logo在图片上的位置，支持左上角和右上角"
+              },
+              "scale_ratio": {
+                "type": "number",
+                "minimum": 0.01,
+                "maximum": 0.5,
+                "description": "Logo相对图片的比例，取值范围0.01-0.5"
+              },
+              "opacity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Logo透明度，取值范围0-1，1为完全不透明"
+              },
+              "padding": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Logo距离图片边缘的边距，单位为像素"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "TaskState",
+          "description": "生图任务状态数据结构，全链路跟踪任务执行进度和结果",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": "TaskState",
+            "type": "object",
+            "required": [
+              "task_id",
+              "status",
+              "original_input"
+            ],
+            "properties": {
+              "task_id": {
+                "type": "string",
+                "description": "全局唯一任务ID，用于任务查询和关联"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "TEXT_PASSED",
+                  "PROMPT_GENERATED",
+                  "IMAGE_GENERATED",
+                  "VI_PASSED",
+                  "LOGO_ADDED",
+                  "COMPLETED",
+                  "FAILED"
+                ],
+                "description": "任务当前执行状态枚举"
+              },
+              "original_input": {
+                "type": "string",
+                "description": "原始用户输入的序列化字符串，用于回溯和重试"
+              },
+              "enhanced_prompt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "优化后的生图提示词",
+                "default": null
+              },
+              "raw_image_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "AI生成的原始图片存储地址",
+                "default": null
+              },
+              "final_image_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "经过Logo叠加、合规校验后的最终图片存储地址",
+                "default": null
+              },
+              "errors": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/definitions/ErrorDetail"
+                },
+                "description": "任务执行过程中产生的错误列表",
+                "default": null
+              }
+            },
+            "definitions": {
+              "ErrorDetail": {
+                "type": "object",
+                "required": [
+                  "code",
+                  "message"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "details": {
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "DomainEvent",
+          "description": "领域事件数据结构，记录所有业务状态变更，支持全链路追溯",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": "DomainEvent",
+            "type": "object",
+            "required": [
+              "event_id",
+              "task_id",
+              "correlation_id",
+              "event_type",
+              "version",
+              "ttl",
+              "timestamp",
+              "payload"
+            ],
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "description": "事件唯一ID，用于幂等校验"
+              },
+              "task_id": {
+                "type": "string",
+                "description": "关联的生图任务ID"
+              },
+              "correlation_id": {
+                "type": "string",
+                "description": "全链路追踪ID，用于跨系统日志排查"
+              },
+              "event_type": {
+                "type": "string",
+                "description": "事件类型，标识业务变更场景"
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "事件版本号，用于兼容迭代"
+              },
+              "ttl": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "事件最大重试次数，避免无限重试"
+              },
+              "timestamp": {
+                "type": "integer",
+                "description": "事件发生时间戳，单位为毫秒"
+              },
+              "payload": {
+                "type": "object",
+                "description": "事件增量数据，存储本次变更的具体内容"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      ],
+      "note": "本文件为契约快照，只读，禁止手动修改，变更需走契约审批流程"
+    }
+  },
+  "mock": "\"\"\"\nMock实现模块\n本模块提供接口的Mock实现，用于开发和测试\n支持Mock/真实实现一键切换\n\"\"\"\n\nfrom typing import List, Dict, Any, Optional, AsyncGenerator\nfrom datetime import datetime\nimport random\nimport os\nimport json\nimport asyncio\n\n\nclass MockManager:\n    \"\"\"\n    Mock管理器：统一管理Mock切换\n    支持通过配置文件或环境变量一键切换Mock/真实实现\n    \"\"\"\n    \n    MOCK_CONFIG_PATH = os.path.join(\n        os.path.dirname(os.path.abspath(__file__)),\n        \"..\", \"..\", \"config\", \"mock_config.json\"\n    )\n    \n    @classmethod\n    def _load_config(cls) -> Dict[str, Any]:\n        \"\"\"加载Mock配置文件\"\"\"\n        if os.path.exists(cls.MOCK_CONFIG_PATH):\n            try:\n                with open(cls.MOCK_CONFIG_PATH, \"r\", encoding=\"utf-8\") as f:\n                    return json.load(f)\n            except Exception:\n                pass\n        return {}\n    \n    @classmethod\n    def is_mock_enabled(cls, module_name: str) -> bool:\n        \"\"\"\n        判断指定模块是否启用Mock\n        \n        :param module_name: 模块名称\n        :return: 是否启用Mock\n        \"\"\"\n        config = cls._load_config()\n        module_config = config.get(module_name, {})\n        return module_config.get(\"enabled\", True)\n    \n    @classmethod\n    def set_mock_mode(cls, module_name: str, enabled: bool):\n        \"\"\"\n        设置模块的Mock模式\n        \n        :param module_name: 模块名称\n        :param enabled: 是否启用Mock\n        \"\"\"\n        config = cls._load_config()\n        if module_name not in config:\n            config[module_name] = {}\n        config[module_name][\"enabled\"] = enabled\n        os.makedirs(os.path.dirname(cls.MOCK_CONFIG_PATH), exist_ok=True)\n        with open(cls.MOCK_CONFIG_PATH, \"w\", encoding=\"utf-8\") as f:\n            json.dump(config, f, ensure_ascii=False, indent=2)\n    \n    @classmethod\n    def get_mock_config(cls, module_name: str) -> Dict[str, Any]:\n        \"\"\"\n        获取模块的Mock配置\n        \n        :param module_name: 模块名称\n        :return: Mock配置字典\n        \"\"\"\n        config = cls._load_config()\n        return config.get(module_name, {})\n\n\nclass MockContentAudit:\n    \"\"\"内容审核接口Mock实现\"\"\"\n    MODULE_NAME = \"content_audit\"\n    \n    def __init__(self, config: Optional[Dict[str, Any]] = None):\n        self.config = config or {}\n        self._mock_config = MockManager.get_mock_config(self.MODULE_NAME)\n    \n    def audit(self, audit_input: Dict[str, Any]) -> Dict[str, Any]:\n        \"\"\"\n        内容审核Mock实现\n        :param audit_input: 审核参数，包含content/request_id字段\n        :return: 审核结果\n        \"\"\"\n        if self._mock_config.get(\"raise_error\", False):\n            raise RuntimeError(\"Mock内容审核服务异常\")\n        \n        fixed_value = self._mock_config.get(\"fixed_value\")\n        if fixed_value is not None:\n            return fixed_value\n        \n        pass_rate = self._mock_config.get(\"pass_rate\", 0.9)\n        if random.random() < pass_rate:\n            return {\n                \"passed\": True,\n                \"violation_type\": None,\n                \"message\": \"内容审核通过\"\n            }\n        else:\n            violation_types = [\"porn\", \"politics\", \"violence\", \"sensitive_word\"]\n            selected_violation = random.choice(violation_types)\n            return {\n                \"passed\": False,\n                \"violation_type\": selected_violation,\n                \"message\": f\"内容违规：{selected_violation}\"\n            }\n\n\nclass MockImageGen:\n    \"\"\"图片生成接口Mock实现\"\"\"\n    MODULE_NAME = \"image_gen\"\n    \n    def __init__(self, config: Optional[Dict[str, Any]] = None):\n        self.config = config or {}\n        self._mock_config = MockManager.get_mock_config(self.MODULE_NAME)\n    \n    def generate(self, gen_input: Dict[str, Any]) -> Dict[str, Any]:\n        \"\"\"\n        图片生成Mock实现\n        :param gen_input: 生成参数，包含prompt/size/extra_params字段\n        :return: 生成结果\n        \"\"\"\n        if self._mock_config.get(\"raise_error\", False):\n            raise RuntimeError(\"Mock图片生成服务异常\")\n        \n        fixed_value = self._mock_config.get(\"fixed_value\")\n        if fixed_value is not None:\n            return fixed_value\n        \n        success_rate = self._mock_config.get(\"success_rate\", 0.95)\n        cost_time = round(random.uniform(0.5, 3.0), 2)\n        if random.random() < success_rate:\n            image_id = random.randint(100000, 999999)\n            return {\n                \"success\": True,\n                \"raw_image_url\": f\"https://mock-minio.example.com/gen_image/raw/{image_id}.png\",\n                \"cost_time\": cost_time\n            }\n        else:\n            return {\n                \"success\": False,\n                \"raw_image_url\": None,\n                \"cost_time\": cost_time,\n                \"error\": {\n                    \"code\": \"GEN_001\",\n                    \"message\": \"图片生成失败\",\n                    \"details\": \"模型推理超时\"\n                }\n            }\n\n\nclass MockImageProcess:\n    \"\"\"图像处理接口Mock实现\"\"\"\n    MODULE_NAME = \"image_process\"\n    \n    def __init__(self, config: Optional[Dict[str, Any]] = None):\n        self.config = config or {}\n        self._mock_config = MockManager.get_mock_config(self.MODULE_NAME)\n    \n    def process(self, process_input: Dict[str, Any]) -> Dict[str, Any]:\n        \"\"\"\n        图像处理Mock实现\n        :param process_input: 处理参数，包含raw_image_url/logo_config字段\n        :return: 处理结果\n        \"\"\"\n        if self._mock_config.get(\"raise_error\", False):\n            raise RuntimeError(\"Mock图像处理服务异常\")\n        \n        fixed_value = self._mock_config.get(\"fixed_value\")\n        if fixed_value is not None:\n            return fixed_value\n        \n        success_rate = self._mock_config.get(\"success_rate\", 0.98)\n        cost_time = round(random.uniform(0.1, 1.0), 2)\n        if random.random() < success_rate:\n            raw_url = process_input.get(\"raw_image_url\", \"\")\n            final_url = raw_url.replace(\"/raw/\", \"/processed/\").replace(\".png\", \"_logo.png\")\n            return {\n                \"success\": True,\n                \"final_image_url\": final_url,\n                \"cost_time\": cost_time\n            }\n        else:\n            return {\n                \"success\": False,\n                \"final_image_url\": None,\n                \"cost_time\": cost_time,\n                \"error\": {\n                    \"code\": \"PROCESS_001\",\n                    \"message\": \"图像处理失败\",\n                    \"details\": \"Logo资源不存在\"\n                }\n            }\n\n\nclass MockImageApiHandler:\n    \"\"\"图片API接口Mock实现\"\"\"\n    MODULE_NAME = \"image_api\"\n    TASK_STATUS_FLOW = [\n        \"PENDING\", \"TEXT_PASSED\", \"PROMPT_GENERATED\",\n        \"IMAGE_GENERATED\", \"VI_PASSED\", \"LOGO_ADDED\", \"COMPLETED\"\n    ]\n    \n    def __init__(self, config: Optional[Dict[str, Any]] = None):\n        self.config = config or {}\n        self._mock_config = MockManager.get_mock_config(self.MODULE_NAME)\n        self._task_store: Dict[str, Dict[str, Any]] = {}\n    \n    def generate_image(self, request: Dict[str, Any]) -> Dict[str, Any]:\n        \"\"\"\n        生图请求接口Mock实现 对应POST /api/v1/images/generate\n        :param request: 生图请求参数 符合GenImageRequest结构\n        :return: 任务返回结果\n        \"\"\"\n        if self._mock_config.get(\"raise_error\", False):\n            raise RuntimeError(\"Mock API服务异常\")\n        \n        fixed_value = self._mock_config.get(\"fixed_generate_value\")\n        if fixed_value is not None:\n            return fixed_value\n        \n        task_id = f\"task_{random.randint(1000000, 9999999)}\"\n        task_state = {\n            \"task_id\": task_id,\n            \"status\": \"PENDING\",\n            \"original_input\": request.get(\"prompt\", \"\"),\n            \"enhanced_prompt\": None,\n            \"raw_image_url\": None,\n            \"final_image_url\": None,\n            \"errors\": None\n        }\n        self._task_store[task_id] = task_state\n        return {\"task_id\": task_id, \"status\": \"PENDING\"}\n    \n    async def get_task_stream(self, task_id: str) -> AsyncGenerator[Dict[str, Any], None]:\n        \"\"\"\n        任务状态流接口Mock实现 对应GET /api/v1/tasks/{task_id}/stream\n        :param task_id: 任务ID\n        :return: SSE流数据\n        \"\"\"\n        if self._mock_config.get(\"raise_error\", False):\n            raise RuntimeError(\"Mock任务流服务异常\")\n        \n        if task_id not in self._task_store:\n            yield {\n                \"event\": \"error\",\n                \"data\": json.dumps({\"code\": \"TASK_NOT_FOUND\", \"message\": \"任务不存在\"})\n            }\n            return\n        \n        task = self._task_store[task_id]\n        flow = self.TASK_STATUS_FLOW.copy()\n        if self._mock_config.get(\"task_failed\", False):\n            failed_step = random.randint(1, len(flow)-1)\n            flow = flow[:failed_step] + [\"FAILED\"]\n        \n        stream_interval = self._mock_config.get(\"stream_interval\", 0.5)\n        for idx, status in enumerate(flow):\n            task[\"status\"] = status\n            progress = int((idx + 1) / len(flow) * 100)\n            \n            if status == \"PROMPT_GENERATED\":\n                task[\"enhanced_prompt\"] = f\"优化提示词：{task['original_input']}，高清8K，无水印，符合品牌规范\"\n            elif status == \"IMAGE_GENERATED\":\n                img_id = random.randint(100000, 999999)\n                task[\"raw_image_url\"] = f\"https://mock-minio.example.com/gen_image/raw/{img_id}.png\"\n            elif status == \"LOGO_ADDED\":\n                task[\"final_image_url\"] = task[\"raw_image_url\"].replace(\"/raw/\", \"/processed/\").replace(\".png\", \"_logo.png\") if task[\"raw_image_url\"] else None\n            elif status == \"FAILED\":\n                task[\"errors\"] = [{\"code\": \"TASK_FAILED\", \"message\": \"任务执行失败\", \"details\": \"未知系统异常\"}]\n            \n            yield {\n                \"event\": \"status\",\n                \"data\": json.dumps({\"task\": task, \"progress\": progress}, ensure_ascii=False)\n            }\n            await asyncio.sleep(stream_interval)\n\n\n# 实例获取方法，支持一键切换Mock/真实实现\ndef get_content_audit_instance() -> Any:\n    if MockManager.is_mock_enabled(MockContentAudit.MODULE_NAME):\n        return MockContentAudit()\n    else:\n        try:\n            from .content_audit_real import ContentAuditReal\n            return ContentAuditReal()\n        except ImportError:\n            return MockContentAudit()\n\n\ndef get_image_gen_instance() -> Any:\n    if MockManager.is_mock_enabled(MockImageGen.MODULE_NAME):\n        return MockImageGen()\n    else:\n        try:\n            from .image_gen_real import ImageGenReal\n            return ImageGenReal()\n        except ImportError:\n            return MockImageGen()\n\n\ndef get_image_process_instance() -> Any:\n    if MockManager.is_mock_enabled(MockImageProcess.MODULE_NAME):\n        return MockImageProcess()\n    else:\n        try:\n            from .image_process_real import ImageProcessReal\n            return ImageProcessReal()\n        except ImportError:\n            return MockImageProcess()\n\n\ndef get_image_api_handler() -> Any:\n    if MockManager.is_mock_enabled(MockImageApiHandler.MODULE_NAME):\n        return MockImageApiHandler()\n    else:\n        try:\n            from .image_api_real import ImageApiHandlerReal\n            return ImageApiHandlerReal()\n        except ImportError:\n            return MockImageApiHandler()\n",
+  "interface": {
+    "raw_content": "\"\"\"\n模块接口契约\n本文件定义了系统所有模块对外暴露的接口，禁止随意修改\n\"\"\"\nfrom typing import List, Dict, Any, Optional, AsyncGenerator\nfrom enum import Enum\nfrom pydantic import BaseModel\nfrom datetime import datetime\n\n# 公共枚举定义\nclass TaskStatusEnum(str, Enum):\n    \"\"\"任务状态枚举\"\"\"\n    PENDING = \"PENDING\"\n    TEXT_PASSED = \"TEXT_PASSED\"\n    PROMPT_GENERATED = \"PROMPT_GENERATED\"\n    IMAGE_GENERATED = \"IMAGE_GENERATED\"\n    VI_PASSED = \"VI_PASSED\"\n    LOGO_ADDED = \"LOGO_ADDED\"\n    COMPLETED = \"COMPLETED\"\n    FAILED = \"FAILED\"\n\nclass LogoPositionEnum(str, Enum):\n    \"\"\"Logo位置枚举\"\"\"\n    LEFT_TOP = \"LEFT_TOP\"\n    RIGHT_TOP = \"RIGHT_TOP\"\n\n# 自定义异常定义\nclass BaseAPIError(Exception):\n    \"\"\"系统基础异常类\"\"\"\n    code: str\n    message: str\n\nclass ParameterError(BaseAPIError):\n    \"\"\"参数校验错误\"\"\"\n    code = \"INVALID_PARAMETER\"\n    message = \"参数校验失败\"\n\nclass AuditFailedError(BaseAPIError):\n    \"\"\"内容审核失败\"\"\"\n    code = \"AUDIT_FAILED\"\n    message = \"内容不符合合规要求\"\n\nclass ImageGenError(BaseAPIError):\n    \"\"\"图片生成失败\"\"\"\n    code = \"IMAGE_GEN_FAILED\"\n    message = \"图片生成服务调用失败\"\n\nclass ImageProcessError(BaseAPIError):\n    \"\"\"图像处理失败\"\"\"\n    code = \"IMAGE_PROCESS_FAILED\"\n    message = \"图像处理失败\"\n\nclass TaskNotFoundError(BaseAPIError):\n    \"\"\"任务不存在\"\"\"\n    code = \"TASK_NOT_FOUND\"\n    message = \"任务ID不存在或已过期\"\n\nclass ExternalDependencyError(BaseAPIError):\n    \"\"\"外部依赖调用失败\"\"\"\n    code = \"EXTERNAL_DEPENDENCY_ERROR\"\n    message = \"第三方服务调用失败\"\n\n# 公共数据结构定义\nclass ErrorDetail(BaseModel):\n    \"\"\"错误详情结构\"\"\"\n    code: str\n    message: str\n    details: Optional[Dict[str, Any]] = None\n\nclass GenImageRequest(BaseModel):\n    \"\"\"生图请求参数\"\"\"\n    request_id: str\n    user_id: str\n    prompt: str\n    size: str\n    brand_id: Optional[str] = None\n    skill_id: Optional[str] = None\n\nclass TaskResponse(BaseModel):\n    \"\"\"任务提交响应\"\"\"\n    task_id: str\n    status: TaskStatusEnum\n\nclass TaskState(BaseModel):\n    \"\"\"任务状态结构\"\"\"\n    task_id: str\n    status: TaskStatusEnum\n    original_input: str\n    enhanced_prompt: Optional[str] = None\n    raw_image_url: Optional[str] = None\n    final_image_url: Optional[str] = None\n    errors: Optional[List[ErrorDetail]] = None\n\nclass DomainEvent(BaseModel):\n    \"\"\"领域事件结构\"\"\"\n    event_id: str\n    task_id: str\n    correlation_id: str\n    event_type: str\n    version: int\n    ttl: int\n    timestamp: int\n    payload: Dict[str, Any]\n\nclass LogoOverlayConfig(BaseModel):\n    \"\"\"Logo叠加配置\"\"\"\n    position: LogoPositionEnum\n    scale_ratio: float\n    opacity: float\n    padding: int\n\nclass AuditResult(BaseModel):\n    \"\"\"内容审核结果\"\"\"\n    passed: bool\n    violation_type: Optional[str] = None\n    message: Optional[str] = None\n\nclass GenResult(BaseModel):\n    \"\"\"生图结果\"\"\"\n    raw_image_url: str\n    cost_time: float\n\nclass ProcessResult(BaseModel):\n    \"\"\"图像处理结果\"\"\"\n    processed_image_url: str\n    cost_time: float\n\n# 抽象接口定义\nclass ContentAuditInterface:\n    \"\"\"内容审核抽象接口，隔离不同审核服务商差异\"\"\"\n    def audit_text(self, text: str, request_id: str) -> AuditResult:\n        \"\"\"\n        审核文本内容\n        :param text: 待审核文本内容\n        :param request_id: 请求唯一ID\n        :return: 审核结果\n        :raises ParameterError: 参数校验失败时抛出\n        :raises ExternalDependencyError: 调用审核服务失败时抛出\n        \"\"\"\n        ...\n    \n    def audit_image(self, image_url: str, request_id: str) -> AuditResult:\n        \"\"\"\n        审核图片内容\n        :param image_url: 待审核图片地址\n        :param request_id: 请求唯一ID\n        :return: 审核结果\n        :raises ParameterError: 参数校验失败时抛出\n        :raises ExternalDependencyError: 调用审核服务失败时抛出\n        \"\"\"\n        ...\n\nclass ImageGenInterface:\n    \"\"\"生图API抽象接口，隔离不同生图厂商差异\"\"\"\n    def generate(self, prompt: str, size: str, extra_params: Optional[Dict[str, Any]] = None) -> GenResult:\n        \"\"\"\n        调用生图服务生成图片\n        :param prompt: 生图提示词\n        :param size: 生成图片尺寸\n        :param extra_params: 额外生图参数\n        :return: 生图结果\n        :raises ParameterError: 参数校验失败时抛出\n        :raises ImageGenError: 生图服务返回失败时抛出\n        :raises ExternalDependencyError: 调用生图服务失败时抛出\n        \"\"\"\n        ...\n\nclass ImageProcessInterface:\n    \"\"\"图像处理抽象接口，隔离不同图像处理实现差异\"\"\"\n    def overlay_logo(self, raw_image_url: str, logo_config: LogoOverlayConfig) -> ProcessResult:\n        \"\"\"\n        给图片叠加Logo\n        :param raw_image_url: 原始图片地址\n        :param logo_config: Logo叠加配置\n        :return: 图像处理结果\n        :raises ParameterError: 参数校验失败时抛出\n        :raises ImageProcessError: 图像处理失败时抛出\n        \"\"\"\n        ...\n\n# 模块接口定义\nclass SharedKernel:\n    \"\"\"核心共享层：定义核心业务实体、通用业务规则、外部依赖抽象接口，无任何外部框架/服务依赖，唯一全局共享模块\"\"\"\n    def __init__(self, config: Optional[Dict[str, Any]] = None):\n        \"\"\"\n        初始化核心共享层\n        :param config: 全局配置字典\n        \"\"\"\n        ...\n    \n    def validate_vi_rule(self, image_url: str, brand_id: str) -> bool:\n        \"\"\"\n        校验图片是否符合品牌VI规则\n        :param image_url: 待校验图片地址\n        :param brand_id: 品牌ID\n        :return: 校验是否通过\n        :raises ParameterError: 参数校验失败时抛出\n        :raises ValueError: 品牌ID不存在时抛出\n        \"\"\"\n        ...\n    \n    def get_logo_config(self, brand_id: str) -> LogoOverlayConfig:\n        \"\"\"\n        获取品牌对应的Logo叠加配置\n        :param brand_id: 品牌ID\n        :return: Logo叠加配置\n        :raises ParameterError: 参数校验失败时抛出\n        :raises ValueError: 品牌ID不存在时抛出\n        \"\"\"\n        ...\n    \n    def enhance_prompt(self, raw_prompt: str, skill_id: Optional[str] = None) -> str:\n        \"\"\"\n        优化用户输入的生图提示词\n        :param raw_prompt: 用户原始提示词\n        :param skill_id: 关联Skill ID，可选\n        :return: 优化后提示词\n        :raises ParameterError: 参数校验失败时抛出\n        \"\"\"\n        ...\n\nclass GenImageFeature:\n    \"\"\"生图垂直切片模块：完整的生图全流程编排，包含参数校验、提示词优化、生图调用、合规审核、VI校验、Logo叠加全链路逻辑\"\"\"\n    def __init__(self, shared_kernel: SharedKernel, config: Optional[Dict[str, Any]] = None):\n        \"\"\"\n        初始化生图模块\n        :param shared_kernel: 核心共享层实例\n        :param config: 模块配置字典\n        \"\"\"\n        ...\n    \n    async def submit_gen_task(self, request: GenImageRequest) -> TaskResponse:\n        \"\"\"\n        提交生图异步任务 对应POST /api/v1/images/generate接口\n        :param request: 生图请求参数\n        :return: 任务提交结果\n        :raises ParameterError: 请求参数校验失败时抛出\n        :raises AuditFailedError: 初审文本违规时抛出\n        \"\"\"\n        ...\n    \n    async def get_task_stream(self, task_id: str) -> AsyncGenerator[Dict[str, Any], None]:\n        \"\"\"\n        获取任务状态SSE流 对应GET /api/v1/tasks/{task_id}/stream接口\n        :param task_id: 任务ID\n        :return: SSE流，包含任务状态、进度、最终结果\n        :raises TaskNotFoundError: 任务ID不存在时抛出\n        \"\"\"\n        ...\n    \n    def get_task_state(self, task_id: str) -> TaskState:\n        \"\"\"\n        查询任务当前状态\n        :param task_id: 任务ID\n        :return: 任务状态对象\n        :raises TaskNotFoundError: 任务ID不存在时抛出\n        \"\"\"\n        ...\n\nclass SkillPackFeature:\n    \"\"\"Skill封装垂直切片模块：将生图流程打包为可复用独立Skill，支持Skill的CRUD、独立调用、配置固化\"\"\"\n    def __init__(self, shared_kernel: SharedKernel, gen_image_module: GenImageFeature, config: Optional[Dict[str, Any]] = None):\n        \"\"\"\n        初始化Skill封装模块\n        :param shared_kernel: 核心共享层实例\n        :param gen_image_module: 生图模块实例（依赖标准接口）\n        :param config: 模块配置字典\n        \"\"\"\n        ...\n    \n    def create_skill(self, name: str, config: Dict[str, Any], user_id: str) -> Dict[str, Any]:\n        \"\"\"\n        创建新的Skill\n        :param name: Skill名称\n        :param config: Skill固化配置\n        :param user_id: 创建用户ID\n        :return: 新建Skill信息\n        :raises ParameterError: 参数校验失败时抛出\n        \"\"\"\n        ...\n    \n    def invoke_skill(self, skill_id: str, input_params: Dict[str, Any], user_id: str) -> TaskResponse:\n        \"\"\"\n        调用Skill执行生图\n        :param skill_id: Skill ID\n        :param input_params: 调用输入参数\n        :param user_id: 调用用户ID\n        :return: 任务执行结果\n        :raises ParameterError: 参数校验失败时抛出\n        :raises ValueError: Skill ID不存在时抛出\n        \"\"\"\n        ...\n    \n    def list_skills(self, user_id: str, page: int = 1, page_size: int = 10) -> Dict[str, Any]:\n        \"\"\"\n        查询用户的Skill列表\n        :param user_id: 用户ID\n        :param page: 页码\n        :param page_size: 每页大小\n        :return: Skill列表分页结果\n        :raises ParameterError: 参数校验失败时抛出\n        \"\"\"\n        ...\n\nclass InfraLayer:\n    \"\"\"基础设施层：实现Shared Kernel定义的抽象接口，屏蔽外部依赖差异\"\"\"\n    def __init__(self, shared_kernel: SharedKernel, config: Optional[Dict[str, Any]] = None):\n        \"\"\"\n        初始化基础设施层\n        :param shared_kernel: 核心共享层实例\n        :param config: 模块配置字典\n        \"\"\"\n        ...\n    \n    def get_content_audit_client(self) -> ContentAuditInterface:\n        \"\"\"获取内容审核客户端实现\"\"\"\n        ...\n    \n    def get_image_gen_client(self) -> ImageGenInterface:\n        \"\"\"获取生图客户端实现\"\"\"\n        ...\n    \n    def get_image_process_client(self) -> ImageProcessInterface:\n        \"\"\"获取图像处理客户端实现\"\"\"\n        ...\n    \n    def save_file(self, file_path: str, content: bytes) -> str:\n        \"\"\"\n        保存文件到对象存储\n        :param file_path: 目标文件路径\n        :param content: 文件二进制内容\n        :return: 文件访问URL\n        :raises ExternalDependencyError: 对象存储调用失败时抛出\n        \"\"\"\n        ...\n    \n    def get_file(self, file_url: str) -> bytes:\n        \"\"\"\n        从对象存储读取文件\n        :param file_url: 文件访问URL\n        :return: 文件二进制内容\n        :raises ExternalDependencyError: 对象存储调用失败时抛出\n        \"\"\"\n        ...\n\nclass GovernanceFeature:\n    \"\"\"可观测治理垂直切片模块：限流降级、健康检查、性能监控、告警、分布式追踪\"\"\"\n    def __init__(self, shared_kernel: SharedKernel, config: Optional[Dict[str, Any]] = None):\n        \"\"\"\n        初始化治理模块\n        :param shared_kernel: 核心共享层实例\n        :param config: 模块配置字典\n        \"\"\"\n        ...\n    \n    def health_check(self) -> Dict[str, Any]:\n        \"\"\"\n        系统健康检查\n        :return: 各组件健康状态\n        \"\"\"\n        ...\n    \n    def record_metric(self, metric_name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:\n        \"\"\"\n        记录监控指标\n        :param metric_name: 指标名称\n        :param value: 指标值\n        :param tags: 指标标签\n        \"\"\"\n        ...\n    \n    def rate_limit(self, resource_key: str, limit: int, period: int) -> bool:\n        \"\"\"\n        限流校验\n        :param resource_key: 限流资源Key\n        :param limit: 周期内最大请求数\n        :param period: 限流周期（秒）\n        :return: 是否通过限流校验\n        \"\"\"\n        ...\n    \n    def send_alert(self, alert_level: str, message: str, extra: Optional[Dict[str, Any]] = None) -> None:\n        \"\"\"\n        发送告警通知\n        :param alert_level: 告警级别：info/warning/error/critical\n        :param message: 告警内容\n        :param extra: 告警额外信息\n        \"\"\"\n        ...\n\n---\n\n【契约快照JSON】\n{\n  \"version\": \"1.0.0\",\n  \"generated_at\": \"2024-05-20T12:00:00Z\",\n  \"read_only\": true,\n  \"interface_contracts\": [\n    {\n      \"module_name\": \"SharedKernel\",\n      \"description\": \"核心共享层：定义核心业务实体、通用业务规则、外部依赖抽象接口，无任何外部框架/服务依赖，唯一全局共享模块\",\n      \"interfaces\": [\n        {\n          \"name\": \"validate_vi_rule\",\n          \"signature\": \"def validate_vi_rule(self, image_url: str, brand_id: str) -> bool\",\n          \"description\": \"校验图片是否符合品牌VI规则\",\n          \"params\": [\n            {\"name\": \"image_url\", \"type\": \"str\", \"description\": \"待校验图片地址\"},\n            {\"name\": \"brand_id\", \"type\": \"str\", \"description\": \"品牌ID\"}\n          ],\n          \"returns\": {\"type\": \"bool\", \"description\": \"校验是否通过\"},\n          \"raises\": [\n            {\"exception\": \"ParameterError\", \"description\": \"参数校验失败时抛出\"},\n            {\"exception\": \"ValueError\", \"description\": \"品牌ID不存在时抛出\"}\n          ]\n        },\n        {\n          \"name\": \"get_logo_config\",\n          \"signature\": \"def get_logo_config(self, brand_id: str) -> LogoOverlayConfig\",\n          \"description\": \"获取品牌对应的Logo叠加配置\",\n          \"params\": [\n            {\"name\": \"brand_id\", \"type\": \"str\", \"description\": \"品牌ID\"}\n          ],\n          \"returns\": {\"type\": \"LogoOverlayConfig\", \"description\": \"Logo叠加配置\"},\n          \"raises\": [\n            {\"exception\": \"ParameterError\", \"description\": \"参数校验失败时抛出\"},\n            {\"exception\": \"ValueError\", \"description\": \"品牌ID不存在时抛出\"}\n          ]\n        },\n        {\n          \"name\": \"enhance_prompt\",\n          \"signature\": \"def enhance_prompt(self, raw_prompt: str, skill_id: Optional[str] = None) -> str\",\n          \"description\": \"优化用户输入的生图提示词\",\n          \"params\": [\n            {\"name\": \"raw_prompt\", \"type\": \"str\", \"description\": \"用户原始提示词\"},\n            {\"name\": \"skill_id\", \"type\": \"Optional[str]\", \"description\": \"关联Skill ID，可选\"}\n          ],\n          \"returns\": {\"type\": \"str\", \"description\": \"优化后提示词\"},\n          \"raises\": [\n            {\"exception\": \"ParameterError\", \"description\": \"参数校验失败时抛出\"}\n          ]\n        }\n      ]\n    },\n    {\n      \"module_name\": \"GenImageFeature\",\n      \"description\": \"生图垂直切片模块：完整的生图全流程编排，包含参数校验、提示词优化、生图调用、合规审核、VI校验、Logo叠加全链路逻辑\",\n      \"interfaces\": [\n        {\n          \"name\": \"submit_gen_task\",\n          \"signature\": \"async def submit_gen_task(self, request: GenImageRequest) -> TaskResponse\",\n          \"description\": \"提交生图异步任务 对应POST /api/v1/images/generate接口\",\n          \"params\": [\n            {\"name\": \"request\", \"type\": \"GenImageRequest\", \"description\": \"生图请求参数\"}\n          ],\n          \"returns\": {\"type\": \"TaskResponse\", \"description\": \"任务提交结果\"},\n          \"raises\": [\n            {\"exception\": \"ParameterError\", \"description\": \"请求参数校验失败时抛出\"},\n            {\"exception\": \"AuditFailedError\", \"description\": \"初审文本违规时抛出\"}\n          ]\n        },\n        {\n          \"name\": \"get_task_stream\",\n          \"signature\": \"async def get_task_stream(self, task_id: str) -> AsyncGenerator[Dict[str, Any], None]\",\n         "
+  }
+}

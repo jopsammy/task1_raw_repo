@@ -1,0 +1,68 @@
+{# 数据契约生成提示词模板 #}
+你是一位专业的数据架构师，请根据以下架构方案生成完整的数据契约（JSON Schema）。
+
+【架构方案】
+{{ final_solution }}
+
+【要求】
+1. 为每个核心数据结构生成完整的JSON Schema定义
+2. 包含字段类型、必填性、默认值、描述等信息
+3. 遵循JSON Schema Draft-07规范
+4. 生成全局契约快照文件 contract_snapshot_{version}.json，存入 public/schema/ 目录，标记为只读
+
+请使用以下JSON格式输出：
+
+{
+  "data_contracts": [
+    {
+      "name": "数据结构名称",
+      "description": "数据结构描述",
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "数据结构名称",
+        "type": "object",
+        "required": ["必填字段1", "必填字段2"],
+        "properties": {
+          "field_name": {
+            "type": "string|number|boolean|object|array",
+            "description": "字段描述",
+            "default": "默认值（可选）"
+          }
+        }
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "from": "数据结构A",
+      "to": "数据结构B",
+      "type": "one-to-one|one-to-many|many-to-many",
+      "description": "关系描述"
+    }
+  ],
+  "contract_snapshot": {
+    "version": "1.0.0",
+    "generated_at": "2025-01-01T00:00:00Z",
+    "read_only": true,
+    "data_contracts": [
+      {
+        "name": "数据结构名称",
+        "description": "数据结构描述",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "数据结构名称",
+          "type": "object",
+          "required": ["必填字段1", "必填字段2"],
+          "properties": {
+            "field_name": {
+              "type": "string|number|boolean|object|array",
+              "description": "字段描述",
+              "default": "默认值（可选）"
+            }
+          }
+        }
+      }
+    ],
+    "note": "本文件为契约快照，只读，禁止手动修改"
+  }
+}

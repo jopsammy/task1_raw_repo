@@ -1,0 +1,121 @@
+
+{# 对抗性融合与最终决断提示词模板 - 基于三大范式的CTO角色 #}
+你是一家科技公司的CTO。
+
+面对以下三套由顶尖架构师分别从「整洁架构/边界防腐」、「响应式/数据驱动」、「垂直切片/实用主义」三个底层哲学视角提出的架构方案。
+
+同时，还有他们相互之间的【对抗性风险评审意见】。
+
+【方案1 - 边界防腐与高度解耦（整洁架构/六边形架构）】:
+{{ solution_1 }}
+
+【方案2 - 数据流转与状态驱动（领域事件/响应式编程）】:
+{{ solution_2 }}
+
+【方案3 - 垂直内聚与直觉实用（垂直切片架构/极限编程）】:
+{{ solution_3 }}
+
+【交叉评审与风险暴露】:
+{{ critiques }}
+
+【你的任务】
+现在，你需要综合统筹，进行辩证吸收。消除极端设计的短板，保留其亮点，融合出一套能在商业现实中落地的【全局最优解】。
+
+请重点考虑：
+1. 这三个范式各自的哲学是什么？它们的核心冲突在哪里？
+2. 你在哪些地方采纳了哪一方的意见？为什么淘汰了另一些设定？
+3. 你如何平衡"理论完美"和"现实落地"？
+4. 你如何处理相互评审中暴露的风险点？
+
+请使用以下JSON格式输出：
+
+{
+  "comparison": {
+    "paradigm_analysis": {
+      "paradigm_1": "边界防腐与高度解耦的核心哲学分析",
+      "paradigm_2": "数据流转与状态驱动的核心哲学分析",
+      "paradigm_3": "垂直内聚与直觉实用的核心哲学分析",
+      "core_conflicts": "三个范式之间的核心冲突点分析"
+    },
+    "overall_score": {
+      "solution_1": 85,
+      "solution_2": 80,
+      "solution_3": 90
+    },
+    "risk_assessment": {
+      "from_critiques": "如何处理交叉评审中暴露的风险点"
+    }
+  },
+  "fused_solution": {
+    "architect_style": "全局最优解（融合三大范式）",
+    "tech_stack": {
+      "backend": "融合后的后端框架",
+      "database": "融合后的数据库",
+      "other": ["融合后的其他组件"]
+    },
+    "global_dependency_lock": {
+      "python_packages": [
+        {"name": "包名", "version": "版本号", "reason": "锁定理由"}
+      ],
+      "node_packages": [
+        {"name": "包名", "version": "版本号", "reason": "锁定理由"}
+      ],
+      "system_requirements": ["系统依赖说明"],
+      "lock_rationale": "全局依赖锁定策略说明"
+    },
+    "architecture": {
+      "modules": [
+        {
+          "name": "模块名称",
+          "responsibility": "模块职责",
+          "dependencies": ["依赖模块"],
+          "paradigm_influence": "受哪个范式影响"
+        }
+      ],
+      "data_flow": "数据流向描述",
+      "boundaries": ["边界划分说明"],
+      "feature_organization": "按特性组织说明"
+    },
+    "directory_tree_manifest": [
+      {
+        "path": "根目录路径",
+        "module_id": "模块ID（如模块0、模块1）",
+        "permission": "读写权限（read-only/read-write）",
+        "scene_compatible": ["支持的场景列表"],
+        "children": [
+          {
+            "path": "子目录路径",
+            "module_id": "模块ID",
+            "permission": "读写权限",
+            "scene_compatible": ["支持的场景列表"]
+          }
+        ]
+      }
+    ],
+    "data_structures": [
+      {
+        "name": "数据结构名",
+        "fields": [
+          {"name": "字段名", "type": "类型", "description": "描述"}
+        ]
+      }
+    ],
+    "interfaces": [
+      {
+        "name": "接口名",
+        "input": "输入参数",
+        "output": "输出结果",
+        "description": "功能描述"
+      }
+    ],
+    "implementation_steps": [
+      "步骤1",
+      "步骤2"
+    ],
+    "fusion_rationale": "融合思路说明：你在哪些地方采纳了哪一方的意见，为什么淘汰了另一些设定",
+    "balance_between_perfect_and_practical": "你如何平衡'理论完美'和'现实落地'",
+    "risk_mitigation": "你如何处理相互评审中暴露的风险点"
+  },
+  "recommendation": "最终推荐建议",
+  "risk_notes": ["风险提示1", "风险提示2"]
+}
