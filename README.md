@@ -48,7 +48,7 @@ $$F[i] = \sum_{s \in \mathcal{D}_i} a^{\,\text{alice}(s)} \times b^{\,\text{bob}
 
 ## 🧠 算法方案 / Solution
 
-**最终算法** — [`solution.cpp`](task1/solution.cpp)：**q-Lucas 分解 + 四子路径混合自适应 NTT**。二维 NTT（余数层 + 商层），全 `(a,b)` 统一 O(N² log N)，纯标量无 SIMD/OpenMP，内存 ~100–200 MB。
+**最终算法** — [`solution_v15.cpp`](task1/solution_v15.cpp)：**q-Lucas 分解 + 四子路径混合自适应 NTT**。二维 NTT（余数层 + 商层），全 `(a,b)` 统一 O(N² log N)，纯标量无 SIMD/OpenMP，内存 ~100–200 MB。
 
 > **Final algorithm**: q-Lucas decomposition + 4-sub-path hybrid adaptive NTT. Two-dimensional NTT (residue-layer + quotient-layer), unified O(N² log N) for all (a,b), pure scalar, ~100–200 MB.
 
@@ -174,7 +174,7 @@ graph LR
 📦 task1_raw_repo
 ├── 📄 README.md                 # 本文件 / This file
 ├── 📂 task1/
-│   ├── 📄 solution.cpp          # 🔥 最终算法 / Final solution (21/21)
+│   ├── 📄 solution_v15.cpp      # 🔥 最终算法 / Final solution (21/21)
 │   ├── 📄 task1.md              # 题目原文 / Problem statement
 │   │
 │   ├── 📂 .trae/                # AC范式规则体系与研究锚点系统
@@ -209,7 +209,7 @@ graph LR
 |------|-------------|
 | [Nowcoder Problem F](https://ac.nowcoder.com/acm/contest/129209/F) | 在线评测页面 / Online judge |
 | [Garsia & Haglund (2002)](https://doi.org/10.1006/jcta.2001.3199) | (q,t)-Catalan 原始递推 / Original recurrence |
-| [`solution.cpp`](task1/solution.cpp) | 最终通过算法（本仓） / Final accepted solution |
+| [`solution_v15.cpp`](task1/solution_v15.cpp) | 最终通过算法（本仓） / Final accepted solution |
 
 <!-- readme-gen:start:footer -->
 <div align="center">
